@@ -1,7 +1,7 @@
 - 👋 Hi, I’m @jolaya80
 - 👀 I’m interested in fishery science and socioecological systems
 - 🌱 I’m currently learning how to evaluate ecosystem services
-- 💞️ I’m looking to collaborate on reasearch projects focused on corservation of marine resources and fisheries
+- 💞️ I’m looking to collaborate on reasearch projects focused on conservation of marine resources and fisheries
 - 📫 Just email me to get in touch
 - 😄 Pronouns: he/his
 - ⚡ Fun fact: pasionate about surf but can't surf
