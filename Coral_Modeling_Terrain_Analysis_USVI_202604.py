@@ -140,7 +140,7 @@ class WorkflowConfig:
     # ── Bathymetry Source (GDB) ──────────────────────────────────────────────
     BATHYMETRY_GDB = (
         r"G:\Shared drives\NSF CoPE internal\GIS_CoPE\GIS_USVI\0_source_data_usvi"
-        r"\Bathymetry\US_Caribbean_Bathy_Mocaics.gdb\US_Caribbean_Bathy_Mocaics.gdb"
+        r"\Bathymetry\US_Caribbean_Bathy_Mocaics.gdb"
     )
     BATHYMETRY_RASTER_NAME = "STTSTJ_2m"
 
@@ -232,13 +232,10 @@ else:
     Logger.info("Exporting bathymetry from GDB (first-time, ~2-3 min)…")
     try:
         raster_path = os.path.join(config.BATHYMETRY_GDB, config.BATHYMETRY_RASTER_NAME)
-        arcpy.RasterToOtherFormat_conversion(raster_path,
-                                             config.BATHYMETRY_WORKING_DIR,
-                                             "TIFF")
-        exported = os.path.join(config.BATHYMETRY_WORKING_DIR,
-                                f"{config.BATHYMETRY_RASTER_NAME}.tif")
-        if os.path.exists(exported) and exported != config.BATHYMETRY_SOURCE_2M:
-            os.rename(exported, config.BATHYMETRY_SOURCE_2M)
+        # CopyRaster accepts a single source path and a destination path,
+        # avoiding the semicolon-delimited list syntax of RasterToOtherFormat.
+        arcpy.management.CopyRaster(raster_path, config.BATHYMETRY_SOURCE_2M,
+                                    format="TIFF")
         Logger.info("✓ Export successful")
     except Exception as e:
         Logger.error(f"Export failed: {e}")
