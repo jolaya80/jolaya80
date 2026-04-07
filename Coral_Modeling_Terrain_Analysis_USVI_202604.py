@@ -137,16 +137,16 @@ class WorkflowConfig:
         r"G:\Shared drives\NSF CoPE internal\GIS_CoPE\GIS_USVI\0_source_data_usvi"
     )
 
-    # ── Bathymetry Source (GDB) ──────────────────────────────────────────────
-    BATHYMETRY_GDB = (
+    # ── Bathymetry Source (direct TIF — no GDB export needed) ───────────────
+    BATHYMETRY_SOURCE_TIF = (
         r"G:\Shared drives\NSF CoPE internal\GIS_CoPE\GIS_USVI\0_source_data_usvi"
-        r"\Bathymetry\US_Caribbean_Bathy_Mocaics.gdb"
+        r"\Bathymetry\STTSTJ_2m.tif"
     )
-    BATHYMETRY_RASTER_NAME = "STTSTJ_2m"
 
-    # Working copy exported from GDB (still in native CRS, 2m)
+    # BATHYMETRY_SOURCE_2M is kept for downstream compatibility; it points
+    # directly to the source TIF (no intermediate copy required).
     BATHYMETRY_WORKING_DIR = os.path.join(OUTPUTS_ROOT, "00_bathymetry_source")
-    BATHYMETRY_SOURCE_2M   = os.path.join(BATHYMETRY_WORKING_DIR, "STTSTJ_2m_native.tif")
+    BATHYMETRY_SOURCE_2M   = BATHYMETRY_SOURCE_TIF
 
     # FIX 2: reprojected bathymetry in EPSG:32620 — used as snap raster and
     #         input for ALL terrain derivatives
@@ -225,21 +225,14 @@ for key, dir_path in output_dirs.items():
     os.makedirs(dir_path, exist_ok=True)
     Logger.info(f"  ✓ {key}: {dir_path}")
 
-# ── 2. Export bathymetry from GDB ─────────────────────────────────────────────
+# ── 2. Verify bathymetry source TIF exists ────────────────────────────────────
 if os.path.exists(config.BATHYMETRY_SOURCE_2M):
-    Logger.info(f"✓ Native bathymetry .tif already exists (cached)")
+    Logger.info(f"✓ Source bathymetry .tif found: {config.BATHYMETRY_SOURCE_2M}")
 else:
-    Logger.info("Exporting bathymetry from GDB (first-time, ~2-3 min)…")
-    try:
-        raster_path = os.path.join(config.BATHYMETRY_GDB, config.BATHYMETRY_RASTER_NAME)
-        # CopyRaster accepts a single source path and a destination path,
-        # avoiding the semicolon-delimited list syntax of RasterToOtherFormat.
-        arcpy.management.CopyRaster(raster_path, config.BATHYMETRY_SOURCE_2M,
-                                    format="TIFF")
-        Logger.info("✓ Export successful")
-    except Exception as e:
-        Logger.error(f"Export failed: {e}")
-        raise
+    Logger.error(f"Source bathymetry not found: {config.BATHYMETRY_SOURCE_2M}")
+    raise FileNotFoundError(
+        f"STTSTJ_2m.tif not found at expected path:\n  {config.BATHYMETRY_SOURCE_2M}"
+    )
 
 # ── 3. FIX 2 – Reproject to EPSG:32620 if needed ─────────────────────────────
 if os.path.exists(config.BATHYMETRY_WGS84_2M):
