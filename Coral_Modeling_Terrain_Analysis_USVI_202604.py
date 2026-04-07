@@ -277,7 +277,7 @@ Logger.info(f"✓ Output CRS  : EPSG:{config.TARGET_CRS_EPSG}")
 try:
     desc    = arcpy.Describe(config.BATHYMETRY_WGS84_2M)
     raster  = arcpy.Raster(config.BATHYMETRY_WGS84_2M)
-    Logger.info(f"  Cell size  : {desc.cellWidth:.1f}m × {desc.cellHeight:.1f}m")
+    Logger.info(f"  Cell size  : {raster.meanCellWidth:.1f}m × {raster.meanCellHeight:.1f}m")
     Logger.info(f"  CRS        : {desc.spatialReference.name}")
     Logger.info(f"  Depth range: {float(raster.minimum):.2f}m to {float(raster.maximum):.2f}m")
 except Exception as e:
@@ -337,7 +337,7 @@ try:
     print(f"\n  File      : {os.path.basename(config.BATHYMETRY_WGS84_2M)}")
     print(f"  CRS       : {desc.spatialReference.name}")
     print(f"  EPSG      : {desc.spatialReference.factoryCode}")
-    print(f"  Cell size : {desc.cellWidth:.1f}m × {desc.cellHeight:.1f}m")
+    print(f"  Cell size : {raster.meanCellWidth:.1f}m × {raster.meanCellHeight:.1f}m")
     print(f"  Depth min : {float(raster.minimum):.2f}m")
     print(f"  Depth max : {float(raster.maximum):.2f}m")
     print(f"  Depth mean: {float(raster.mean):.2f}m")
@@ -432,7 +432,8 @@ try:
     Logger.info(f"✓ slope_50m.tif created ({os.path.getsize(slope_50m)/1e6:.1f} MB)")
     # Verify true 50m cell size
     d = arcpy.Describe(slope_50m)
-    Logger.info(f"  Cell size : {d.cellWidth:.1f}m × {d.cellHeight:.1f}m")
+    _r = arcpy.Raster(slope_50m)
+    Logger.info(f"  Cell size : {_r.meanCellWidth:.1f}m × {_r.meanCellHeight:.1f}m")
     Logger.info(f"  CRS       : {d.spatialReference.name}")
 except Exception as e:
     Logger.error(f"Aggregation failed: {e}")
@@ -499,7 +500,7 @@ try:
     result.save(slope_240m_50m)
     Logger.info(f"✓ slope_240m_50m.tif created ({os.path.getsize(slope_240m_50m)/1e6:.1f} MB)")
     d = arcpy.Describe(slope_240m_50m)
-    Logger.info(f"  Cell size : {d.cellWidth:.1f}m × {d.cellHeight:.1f}m")
+    Logger.info(f"  Cell size : {arcpy.Raster(slope_240m_50m).meanCellWidth:.1f}m × {arcpy.Raster(slope_240m_50m).meanCellHeight:.1f}m")
 except Exception as e:
     Logger.error(f"Aggregation failed: {e}")
     raise
@@ -548,7 +549,7 @@ try:
     Logger.info(f"✓ slope_of_slope_50m.tif created "
                 f"({os.path.getsize(slope_of_slope_50m)/1e6:.1f} MB)")
     d = arcpy.Describe(slope_of_slope_50m)
-    Logger.info(f"  Cell size : {d.cellWidth:.1f}m × {d.cellHeight:.1f}m")
+    Logger.info(f"  Cell size : {arcpy.Raster(slope_of_slope_50m).meanCellWidth:.1f}m × {arcpy.Raster(slope_of_slope_50m).meanCellHeight:.1f}m")
 except Exception as e:
     Logger.error(f"Failed: {e}")
     raise
@@ -604,7 +605,7 @@ try:
     aspect_result.save(aspect_2m)
     Logger.info(f"✓ aspect_2m.tif created ({os.path.getsize(aspect_2m)/1e6:.1f} MB)")
     d = arcpy.Describe(aspect_2m)
-    Logger.info(f"  Cell size : {d.cellWidth:.1f}m × {d.cellHeight:.1f}m")
+    Logger.info(f"  Cell size : {arcpy.Raster(aspect_2m).meanCellWidth:.1f}m × {arcpy.Raster(aspect_2m).meanCellHeight:.1f}m")
 except Exception as e:
     Logger.error(f"Aspect failed: {e}")
     raise
@@ -660,7 +661,8 @@ try:
     mean_deg.save(aspect_50m)
     Logger.info(f"✓ aspect_50m.tif created ({os.path.getsize(aspect_50m)/1e6:.1f} MB)")
     d = arcpy.Describe(aspect_50m)
-    Logger.info(f"  Cell size : {d.cellWidth:.1f}m × {d.cellHeight:.1f}m")
+    _r = arcpy.Raster(aspect_50m)
+    Logger.info(f"  Cell size : {_r.meanCellWidth:.1f}m × {_r.meanCellHeight:.1f}m")
     Logger.info(f"  CRS       : {d.spatialReference.name}")
 except Exception as e:
     Logger.error(f"Circular mean recovery failed: {e}")
@@ -712,7 +714,7 @@ try:
     curv_result.save(curvature_2m)
     Logger.info(f"✓ curvature_2m.tif created ({os.path.getsize(curvature_2m)/1e6:.1f} MB)")
     d = arcpy.Describe(curvature_2m)
-    Logger.info(f"  Cell size : {d.cellWidth:.1f}m × {d.cellHeight:.1f}m")
+    Logger.info(f"  Cell size : {arcpy.Raster(curvature_2m).meanCellWidth:.1f}m × {arcpy.Raster(curvature_2m).meanCellHeight:.1f}m")
 except Exception as e:
     Logger.error(f"Curvature failed: {e}")
     raise
@@ -725,7 +727,8 @@ try:
     result.save(curvature_50m)
     Logger.info(f"✓ curvature_50m.tif created ({os.path.getsize(curvature_50m)/1e6:.1f} MB)")
     d = arcpy.Describe(curvature_50m)
-    Logger.info(f"  Cell size : {d.cellWidth:.1f}m × {d.cellHeight:.1f}m")
+    _r = arcpy.Raster(curvature_50m)
+    Logger.info(f"  Cell size : {_r.meanCellWidth:.1f}m × {_r.meanCellHeight:.1f}m")
     Logger.info(f"  CRS       : {d.spatialReference.name}")
 except Exception as e:
     Logger.error(f"Aggregation failed: {e}")
@@ -771,9 +774,10 @@ for label, path in final_outputs.items():
         continue
     try:
         d    = arcpy.Describe(path)
+        _r   = arcpy.Raster(path)
         epsg = d.spatialReference.factoryCode if d.spatialReference else "?"
-        cx   = d.cellWidth
-        cy   = d.cellHeight
+        cx   = _r.meanCellWidth
+        cy   = _r.meanCellHeight
         crs_label = f"{d.spatialReference.name} ({epsg})"
         ok = (epsg == config.TARGET_CRS_EPSG
               and abs(cx - config.TARGET_RESOLUTION) < 1
