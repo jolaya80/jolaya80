@@ -87,6 +87,34 @@ class Logger:
         print("=" * 70)
 
 
+def _save_raster(raster_obj, output_path, label="raster"):
+    """
+    Save a Spatial Analyst raster object reliably to a network or cloud path.
+
+    Direct .save() to Google Drive or UNC paths can fail silently for large
+    rasters: the call returns without error but no file is written.  This
+    helper saves to ArcPy's local scratch folder first (fast, reliable),
+    verifies the scratch file, then copies it to the final destination with
+    CopyRaster and verifies again.
+    """
+    scratch_path = os.path.join(arcpy.env.scratchFolder,
+                                os.path.basename(output_path))
+    raster_obj.save(scratch_path)
+    if not os.path.exists(scratch_path):
+        raise RuntimeError(
+            f"{label}: scratch save produced no file → {scratch_path}"
+        )
+    Logger.info(
+        f"  Scratch OK ({os.path.getsize(scratch_path)/1e6:.1f} MB)"
+        " — copying to final destination…"
+    )
+    arcpy.management.CopyRaster(scratch_path, output_path)
+    if not os.path.exists(output_path):
+        raise RuntimeError(
+            f"{label}: CopyRaster to final path produced no file → {output_path}"
+        )
+
+
 # ============================================================================
 # BLOCK 0 – CONFIGURATION  (Fix 1)
 # ============================================================================
@@ -486,7 +514,7 @@ try:
     arcpy.env.snapRaster = config.BATHYMETRY_WGS84_2M
     neighborhood = NbrCircle(config.FOCAL_RADIUS_240M_at2m, "CELL")  # FIX 4
     focal_result = FocalStatistics(Raster(slope_2m), neighborhood, "MEAN")
-    focal_result.save(slope_2m_240m_focal)
+    _save_raster(focal_result, slope_2m_240m_focal, "slope_2m_240m_focal.tif")
     Logger.info(f"✓ 240m focal result saved ({os.path.getsize(slope_2m_240m_focal)/1e6:.1f} MB)")
 except Exception as e:
     Logger.error(f"FocalStatistics failed: {e}")
@@ -497,7 +525,7 @@ Logger.info(f"\n[2/2] Aggregating 2m → 50m (factor={config.AGG_FACTOR})…")
 try:
     result = SA_Aggregate(Raster(slope_2m_240m_focal), config.AGG_FACTOR, "MEAN",
                           extent_handling="EXPAND", ignore_nodata="DATA")
-    result.save(slope_240m_50m)
+    _save_raster(result, slope_240m_50m, "slope_240m_50m.tif")
     Logger.info(f"✓ slope_240m_50m.tif created ({os.path.getsize(slope_240m_50m)/1e6:.1f} MB)")
     d = arcpy.Describe(slope_240m_50m)
     Logger.info(f"  Cell size : {arcpy.Raster(slope_240m_50m).meanCellWidth:.1f}m × {arcpy.Raster(slope_240m_50m).meanCellHeight:.1f}m")
@@ -602,7 +630,7 @@ Logger.info("  ⏳ ~30-40 seconds…")
 try:
     arcpy.env.snapRaster = config.BATHYMETRY_WGS84_2M
     aspect_result = Aspect(Raster(bathymetry_positive))
-    aspect_result.save(aspect_2m)
+    _save_raster(aspect_result, aspect_2m, "aspect_2m.tif")
     Logger.info(f"✓ aspect_2m.tif created ({os.path.getsize(aspect_2m)/1e6:.1f} MB)")
     d = arcpy.Describe(aspect_2m)
     Logger.info(f"  Cell size : {arcpy.Raster(aspect_2m).meanCellWidth:.1f}m × {arcpy.Raster(aspect_2m).meanCellHeight:.1f}m")
@@ -624,8 +652,8 @@ try:
     asp_rad = asp_valid * DEG2RAD
     sin_r = arcpy.sa.Sin(asp_rad)
     cos_r = arcpy.sa.Cos(asp_rad)
-    sin_r.save(aspect_sin_2m)
-    cos_r.save(aspect_cos_2m)
+    _save_raster(sin_r, aspect_sin_2m, "aspect_sin_2m.tif")
+    _save_raster(cos_r, aspect_cos_2m, "aspect_cos_2m.tif")
     Logger.info("✓ sin/cos components saved")
 except Exception as e:
     Logger.error(f"Sin/cos decomposition failed: {e}")
@@ -711,7 +739,7 @@ Logger.info("  ⏳ ~30-40 seconds…")
 try:
     arcpy.env.snapRaster = config.BATHYMETRY_WGS84_2M
     curv_result = Curvature(Raster(bathymetry_positive))
-    curv_result.save(curvature_2m)
+    _save_raster(curv_result, curvature_2m, "curvature_2m.tif")
     Logger.info(f"✓ curvature_2m.tif created ({os.path.getsize(curvature_2m)/1e6:.1f} MB)")
     d = arcpy.Describe(curvature_2m)
     Logger.info(f"  Cell size : {arcpy.Raster(curvature_2m).meanCellWidth:.1f}m × {arcpy.Raster(curvature_2m).meanCellHeight:.1f}m")
