@@ -139,8 +139,10 @@ class WorkflowConfig:
 
     # ── Bathymetry Source (direct TIF — no GDB export needed) ───────────────
     BATHYMETRY_SOURCE_TIF = (
-        r"G:\Shared drives\NSF CoPE internal\GIS_CoPE\GIS_USVI\0_source_data_usvi"
-        r"\Bathymetry\STTSTJ_2m.tif"
+        r"G:\Shared drives\NSF CoPE internal\GIS_CoPE\GIS_USVI"
+        r"\2_model_inputs_usvi\Fisheries\coral_cover_modeling"
+        r"\05_preparation_spatial_predictors\02_terrain_analysis_outputs"
+        r"\00_bathymetry_source\STTSTJ_2m.tif"
     )
 
     # BATHYMETRY_SOURCE_2M is kept for downstream compatibility; it points
