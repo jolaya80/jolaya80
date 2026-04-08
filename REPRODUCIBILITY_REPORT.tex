@@ -1,0 +1,747 @@
+% =============================================================================
+%  Reproducibility Report – Coral Reef Terrain Analysis (USVI)
+%  Compile with: pdflatex REPRODUCIBILITY_REPORT.tex  (twice for TOC/refs)
+%  Required packages: geometry, hyperref, booktabs, longtable, xcolor,
+%                     listings, fancyhdr, titlesec, parskip, microtype
+% =============================================================================
+
+\documentclass[11pt, a4paper]{article}
+
+% ── Encoding & fonts ──────────────────────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% ── Page geometry ─────────────────────────────────────────────────────────────
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.8cm, right=2.8cm]{geometry}
+
+% ── Colour palette ────────────────────────────────────────────────────────────
+\usepackage[dvipsnames, table]{xcolor}
+\definecolor{coralblue}{RGB}{0,84,147}      % main heading colour
+\definecolor{coralred}{RGB}{200,60,40}      % accent / warnings
+\definecolor{lightgray}{RGB}{245,245,245}   % code background
+\definecolor{midgray}{RGB}{200,200,200}     % table rules
+\definecolor{darkgray}{RGB}{80,80,80}       % secondary text
+
+% ── Hyperlinks ────────────────────────────────────────────────────────────────
+\usepackage[colorlinks=true,
+            linkcolor=coralblue,
+            urlcolor=coralblue,
+            citecolor=coralblue,
+            pdftitle={Reproducibility Report – Coral Terrain Analysis USVI},
+            pdfauthor={J. Olaya, GitHub Copilot Coding Agent},
+            pdfsubject={Spatial ecology – benthic terrain predictors},
+            pdfkeywords={coral reef, USVI, terrain analysis, ArcGIS, reproducibility}
+           ]{hyperref}
+
+% ── Section styling ───────────────────────────────────────────────────────────
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries\color{coralblue}}{}{0em}{}[\color{midgray}\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries\color{coralblue}}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\itshape\color{darkgray}}{}{0em}{}
+
+% ── Header / footer ───────────────────────────────────────────────────────────
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{darkgray}Reproducibility Report — Coral Terrain Analysis, USVI}
+\fancyhead[R]{\small\color{darkgray}April 2026}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ── Paragraph spacing ─────────────────────────────────────────────────────────
+\usepackage{parskip}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+% ── Tables ────────────────────────────────────────────────────────────────────
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+% ── Code listings ─────────────────────────────────────────────────────────────
+\usepackage{listings}
+\lstset{
+  backgroundcolor=\color{lightgray},
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  framerule=0.4pt,
+  rulecolor=\color{midgray},
+  showstringspaces=false,
+  columns=flexible,
+}
+\lstdefinestyle{Rcode}{language=R, keywordstyle=\color{coralblue}\bfseries,
+                        stringstyle=\color{coralred}}
+\lstdefinestyle{pycode}{language=Python, keywordstyle=\color{coralblue}\bfseries,
+                         stringstyle=\color{coralred}}
+\lstdefinestyle{shell}{basicstyle=\ttfamily\footnotesize\color{darkgray},
+                        backgroundcolor=\color{lightgray}}
+
+% ── Miscellaneous ─────────────────────────────────────────────────────────────
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{pifont}   % \ding{51} = ✓
+\newcommand{\cmark}{\textcolor{OliveGreen}{\ding{51}}}
+\newcommand{\xmark}{\textcolor{coralred}{\ding{55}}}
+
+% ── Date ──────────────────────────────────────────────────────────────────────
+\usepackage{datetime2}
+
+% =============================================================================
+%  TITLE PAGE
+% =============================================================================
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+
+  {\color{coralblue}\rule{\linewidth}{1.5pt}}\\[0.4cm]
+
+  {\LARGE\bfseries\color{coralblue}
+    Reproducibility Report\\[0.3em]
+    Coral Reef Terrain Analysis\\[0.3em]
+    St.\ Thomas / St.\ John, US Virgin Islands (USVI)
+  }\\[0.4cm]
+
+  {\large\color{darkgray}
+    Spatial Predictor Stack Construction at 50\,m / EPSG:32620
+  }\\[0.3cm]
+
+  {\color{coralblue}\rule{\linewidth}{1.5pt}}\\[1.5cm]
+
+  \begin{tabular}{rl}
+    \textbf{Domain scientist:}  & J.\ Olaya \\[4pt]
+    \textbf{AI assistant:}      & GitHub Copilot Coding Agent (Claude Sonnet) \\[4pt]
+    \textbf{Date:}              & April 2026 \\[4pt]
+    \textbf{Repository:}        & \href{https://github.com/jolaya80/jolaya80}%
+                                       {\texttt{github.com/jolaya80/jolaya80}} \\[4pt]
+    \textbf{Main script:}       & \texttt{Coral\_Modeling\_Terrain\_Analysis\_USVI\_202604.py} \\[4pt]
+    \textbf{Supporting scripts:}& \texttt{01\_exploratory\_spatial\_analysis.R} \\
+                                & \texttt{02\_reproject\_resample.R} \\
+  \end{tabular}
+
+  \vfill
+
+  {\small\color{darkgray}
+    \textit{This document is intended to enable full reproducibility of the
+    terrain predictor pipeline by any researcher with access to ArcGIS Pro
+    (Spatial Analyst Extension) and/or R\,($\geq$\,4.1).}
+  }
+\end{titlepage}
+
+% =============================================================================
+%  TABLE OF CONTENTS
+% =============================================================================
+
+\tableofcontents
+\newpage
+
+% =============================================================================
+\section{Purpose of This Document}
+% =============================================================================
+
+This report documents the complete workflow used to derive bathymetric terrain
+predictors for coral-cover modelling in St.\ Thomas and St.\ John (USVI).  Its
+primary objective is \textbf{reproducibility}: any researcher with the required
+software and data should be able to re-run every step and obtain identical
+outputs.
+
+The document records:
+
+\begin{itemize}[noitemsep]
+  \item the original research question and spatial specifications provided by
+        the domain scientist;
+  \item the technical contributions made by the AI coding agent;
+  \item a chronological account of the human–AI interaction;
+  \item all bugs found and corrected during development;
+  \item the final verified outputs; and
+  \item step-by-step instructions for non-expert users.
+\end{itemize}
+
+% =============================================================================
+\section{Project Background and Initial Request}
+% =============================================================================
+
+\subsection{Research Context}
+
+The work belongs to a coral-cover modelling project for St.\ Thomas and
+St.\ John (USVI), funded under the NSF CoPE programme
+(\textit{Coral Reefs in a Rapidly Changing Environment}).
+The goal is to predict benthic hard-coral cover percentages from environmental
+predictors using a statistical model trained on field-survey observations.
+
+Terrain descriptors derived from high-resolution (2\,m) bathymetry serve as
+the spatial predictors.  Table~\ref{tab:predictors} lists those chosen and
+their ecological rationale.
+
+\begin{table}[h]
+\centering
+\caption{Terrain predictors and ecological justification.}
+\label{tab:predictors}
+\rowcolors{2}{lightgray}{white}
+\begin{tabularx}{\linewidth}{L{5cm}X}
+\toprule
+\textbf{Predictor} & \textbf{Ecological rationale} \\
+\midrule
+Slope (local, 50\,m)        & Substrate angle; affects sedimentation and larval settlement \\
+Slope (broad-scale, 240\,m) & Regional exposure to currents and wave energy \\
+Slope-of-slope              & Terrain ruggedness; structural complexity proxy \\
+Aspect                      & Directional orientation; related to light and current exposure \\
+Curvature                   & Concavity / convexity; controls sediment convergence \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{The Initial Request}
+
+The user's original task (paraphrased) was:
+
+\begin{quote}
+\textit{``I need to build spatial terrain predictors for St.\ Thomas USVI from
+a 2\,m bathymetry raster.  The target coordinate reference system is WGS\,84 /
+UTM Zone\,20N (EPSG:32620) and the final output resolution must be
+50\,m $\times$ 50\,m.  I need slope at multiple scales, slope-of-slope,
+aspect, and curvature.  Can you write a Python script using ArcGIS\,Pro /
+\texttt{arcpy} to do this?''}
+\end{quote}
+
+The user shared a preliminary Python script and asked the AI to review, correct,
+and extend it.  Subsequent messages involved iterative debugging as issues were
+discovered during execution.
+
+% =============================================================================
+\section{User Contributions}
+% =============================================================================
+
+The domain scientist provided all of the context in Table~\ref{tab:user}.
+Without this information the AI could not have constructed the correct analysis.
+
+\begin{table}[h]
+\centering
+\caption{Knowledge and criteria provided by the domain scientist.}
+\label{tab:user}
+\rowcolors{2}{lightgray}{white}
+\begin{tabularx}{\linewidth}{L{4.5cm}X}
+\toprule
+\textbf{Category} & \textbf{Detail} \\
+\midrule
+Study area            & St.\ Thomas + St.\ John (USVI) \\
+Research programme    & NSF CoPE \\
+Target predictors     & Slope (50\,m \& 240\,m), slope-of-slope, aspect, curvature \\
+Source data           & \texttt{STTSTJ\_2m.tif} (2\,m bathymetry) on shared Google Drive \\
+Target CRS            & EPSG:32620 — WGS\,84 / UTM Zone\,20N \\
+Target resolution     & 50\,m $\times$ 50\,m \\
+Focal neighbourhood   & 240\,m radius for broad-scale slope \\
+Folder structure      & NSF CoPE internal Google Drive path \\
+Tooling               & ArcGIS\,Pro + \texttt{arcpy} (Python); R for QA \\
+QA criteria           & All outputs exactly 50.0\,m / EPSG:32620; keep 2\,m archives \\
+Execution feedback    & Error messages and unexpected file sizes from each run \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% =============================================================================
+\section{AI Agent Contributions}
+% =============================================================================
+
+\subsection{Code Architecture}
+
+\begin{itemize}[noitemsep]
+  \item Block-by-block Jupyter Notebook structure (BLOCK\,0–8) allowing each
+        step to be run and verified independently.
+  \item \texttt{WorkflowConfig} class centralising all parameters (paths, CRS,
+        resolutions, aggregation factors, focal radii).
+  \item \texttt{Logger} utility for timestamped console output.
+  \item \texttt{\_save\_raster()} helper working around silent save failures on
+        Google Drive for large rasters.
+\end{itemize}
+
+\subsection{Technical Diagnosis and Bug Fixes}
+
+Seven critical bugs were identified through analysis of the user's reported
+errors and the initial code (see Section~\ref{sec:fixes} for full details).
+
+\subsection{R Scripts}
+
+\begin{itemize}[noitemsep]
+  \item \texttt{01\_exploratory\_spatial\_analysis.R} — loads all raster and
+        vector inputs, clips the WCMC coral-reef polygon mask to the study area,
+        reports CRS/resolution, and counts survey points inside the coral mask.
+  \item \texttt{02\_reproject\_resample.R} — reprojects and resamples all
+        terrain rasters from EPSG:26920 to EPSG:32620 at 50\,m using R's
+        \texttt{terra} package, including circular-mean aspect aggregation.
+        (No longer required after the Python fixes; retained for reference.)
+\end{itemize}
+
+\subsection{Documentation}
+
+All code is extensively commented, explaining \textit{what} each step does and
+\textit{why} — ecological rationale, statistical correctness, and the risks of
+alternative approaches.  Each BLOCK begins with a docstring listing the fix
+applied, expected outputs, and estimated processing time.
+
+% =============================================================================
+\section{Conversation Flow and Collaborative Process}
+% =============================================================================
+
+\subsection{How the Interface Works}
+
+The work was done using the \textbf{GitHub Copilot Coding Agent} (Task Agent),
+which operates directly on a GitHub repository:
+
+\begin{enumerate}[noitemsep]
+  \item The user submits a task description in natural language via the
+        GitHub Copilot interface.
+  \item The agent clones the repository into a sandboxed environment, reads all
+        existing files, and plans the work.
+  \item The agent writes, edits, and commits code changes directly to a feature
+        branch.
+  \item The user reviews all changes via Pull Requests on GitHub.
+  \item The agent reports progress at each meaningful step.
+  \item Conversations are iterative: the user can submit follow-up tasks, error
+        messages, or new requirements, and the agent continues on the same
+        branch.
+\end{enumerate}
+
+\subsection{Chronological Summary}
+
+Table~\ref{tab:conversation} summarises each stage of the dialogue.
+
+\begin{longtable}{L{3cm}L{6cm}L{5.5cm}}
+\caption{Summary of human–AI interaction.}\label{tab:conversation}\\
+\toprule
+\textbf{Stage} & \textbf{User action} & \textbf{AI action} \\
+\midrule
+\endfirsthead
+\multicolumn{3}{c}{\small\textit{(continued from previous page)}}\\
+\toprule
+\textbf{Stage} & \textbf{User action} & \textbf{AI action} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{3}{r}{\small\textit{(continued on next page)}}\\
+\endfoot
+\bottomrule
+\endlastfoot
+Initial request
+  & Described research goal, data, and required outputs
+  & Reviewed code; identified 7 bugs; proposed corrected architecture \\[4pt]
+First code version
+  & Ran BLOCK\,0 and BLOCK\,1; confirmed workspace set up
+  & Committed Blocks 0–2 with fixes 1 \& 2 \\[4pt]
+Slope computation
+  & Ran BLOCK\,3; reported unexpected file sizes
+  & Diagnosed wrong \texttt{AGG\_FACTOR}; fixed single-step aggregation \\[4pt]
+240\,m slope
+  & Ran BLOCK\,4; processing too fast ($<$10\,s, expected 5–8\,min)
+  & Diagnosed wrong focal radius (5 cells instead of 120) \\[4pt]
+Aspect \& curvature
+  & Ran Blocks 6–7; asked about circular mean
+  & Explained 0°/360° wrap-around; implemented sin/cos decomposition;
+    added 50\,m curvature aggregation in Python \\[4pt]
+Final verification
+  & Ran BLOCK\,8; all five outputs \cmark{} 50\,m / EPSG:32620
+  & Confirmed workflow complete; noted R script no longer needed \\[4pt]
+Documentation
+  & Requested reproducibility report
+  & Wrote Markdown and \LaTeX{} versions \\
+\end{longtable}
+
+% =============================================================================
+\section{Technical Fixes Applied}\label{sec:fixes}
+% =============================================================================
+
+Table~\ref{tab:fixes} documents all seven corrections.  Each fix is labelled in
+the script header and in the relevant BLOCK docstring.
+
+\begin{longtable}{C{0.6cm}L{2cm}L{5.2cm}L{5.2cm}}
+\caption{Bugs identified and corrected.}\label{tab:fixes}\\
+\toprule
+\textbf{\#} & \textbf{Location} & \textbf{Original (buggy) behaviour} & \textbf{Corrected behaviour} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{\#} & \textbf{Location} & \textbf{Original} & \textbf{Corrected} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+1 & \texttt{WorkflowConfig}
+  & Wrong \texttt{AGG\_FACTOR}; confusing two-step factor chain
+  & Single \texttt{AGG\_FACTOR = 25} (50\,m / 2\,m); intermediate factors removed \\[4pt]
+2 & BLOCK\,1
+  & Terrain tools ran on native NAD83 bathymetry (EPSG:26920)
+  & Reproject bathymetry to EPSG:32620 first; all derivatives inherit correct CRS \\[4pt]
+3 & BLOCK\,3
+  & Two-step chain (Slope $\to$ Copy $\to$ BlockStatistics) left output at 2\,m
+  & Single \texttt{Aggregate(factor=25, MEAN)} on \texttt{slope\_2m.tif} $\Rightarrow$ true 50\,m cells \\[4pt]
+4 & BLOCK\,4
+  & \texttt{NbrCircle(5)} on 2\,m raster $=$ 10\,m neighbourhood
+  & \texttt{NbrCircle(120)} on 2\,m raster $=$ 240\,m neighbourhood \\[4pt]
+5 & BLOCK\,5
+  & Slope-of-slope computed from a 2\,m raster mislabelled as ``50\,m''
+  & Uses the true 50\,m slope produced by Fix~3 \\[4pt]
+6 & BLOCK 6/6b
+  & Arithmetic mean of aspect degrees — wrong at the 0°/360° wrap
+  & Circular mean via sin/cos decomposition $\to$ aggregate $\to$ \texttt{atan2} recovery \\[4pt]
+7 & BLOCK 7/7b
+  & Only \texttt{curvature\_2m.tif} produced; aggregation deferred to R
+  & \texttt{Aggregate(factor=25, MEAN)} added in Python; 50\,m output produced directly \\
+\end{longtable}
+
+\subsection{Mathematical Detail: Circular Mean for Aspect}
+
+Aspect is a \textit{circular} variable (degrees, wrapping at 0°/360°).
+A naive arithmetic mean fails near the wrap-around:
+\[
+  \overline{\theta}_{\text{naive}}(1°, 359°) = 180°
+  \quad \text{(wrong; correct answer is } 0°)
+\]
+The circular mean is computed as follows:
+\begin{align}
+  \bar{s} &= \frac{1}{n}\sum_{i=1}^{n}\sin(\theta_i),\quad
+  \bar{c}  = \frac{1}{n}\sum_{i=1}^{n}\cos(\theta_i) \\[4pt]
+  \bar{\theta} &= \operatorname{atan2}(\bar{s},\,\bar{c})
+                  \;\mathrm{mod}\; 2\pi
+                  \quad\text{(converted to degrees)}
+\end{align}
+This is implemented in both the Python script (BLOCK\,6b) and the R helper
+\texttt{circular\_mean\_aspect()}.
+
+% =============================================================================
+\section{Final Outputs and Verification}
+% =============================================================================
+
+BLOCK\,8 performs final verification.  All five outputs passed:
+
+\begin{table}[h]
+\centering
+\caption{BLOCK 8 verification results.}
+\rowcolors{2}{lightgray}{white}
+\begin{tabular}{lllrr}
+\toprule
+\textbf{File} & \textbf{CRS} & \textbf{EPSG} & \textbf{Cell X\,(m)} & \textbf{Cell Y\,(m)} \\
+\midrule
+\cmark{} \texttt{slope\_50m.tif}           & WGS\_1984\_UTM\_Zone\_20N & 32620 & 50.0 & 50.0 \\
+\cmark{} \texttt{slope\_240m\_50m.tif}     & WGS\_1984\_UTM\_Zone\_20N & 32620 & 50.0 & 50.0 \\
+\cmark{} \texttt{slope\_of\_slope\_50m.tif}& WGS\_1984\_UTM\_Zone\_20N & 32620 & 50.0 & 50.0 \\
+\cmark{} \texttt{aspect\_50m.tif}          & WGS\_1984\_UTM\_Zone\_20N & 32620 & 50.0 & 50.0 \\
+\cmark{} \texttt{curvature\_50m.tif}       & WGS\_1984\_UTM\_Zone\_20N & 32620 & 50.0 & 50.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Intermediate 2\,m Archives}
+
+\begin{table}[h]
+\centering
+\caption{Intermediate files kept for QA/archive.}
+\rowcolors{2}{lightgray}{white}
+\begin{tabularx}{\linewidth}{L{7cm}X}
+\toprule
+\textbf{Path (relative to \texttt{02\_terrain\_analysis\_outputs/})} & \textbf{Description} \\
+\midrule
+\texttt{00\_bathymetry\_source/STTSTJ\_2m\_native.tif}  & Original bathymetry in native CRS \\
+\texttt{00\_bathymetry\_source/STTSTJ\_2m\_EPSG32620.tif} & Bathymetry reprojected to EPSG:32620 (2\,m) \\
+\texttt{00\_intermediate/slope\_2m.tif}                 & Slope at native 2\,m resolution \\
+\texttt{00\_intermediate/slope\_2m\_240m\_focal.tif}    & Focal-mean slope at 240\,m scale (2\,m pixels) \\
+\texttt{03\_aspect/aspect\_2m.tif}                      & Aspect at 2\,m resolution \\
+\texttt{02\_curvature/curvature\_2m.tif}                & Curvature at 2\,m resolution \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% =============================================================================
+\section{About the Agent and Model Used}
+% =============================================================================
+
+\begin{table}[h]
+\centering
+\caption{AI agent and model provenance.}
+\rowcolors{2}{lightgray}{white}
+\begin{tabularx}{\linewidth}{L{4cm}X}
+\toprule
+\textbf{Property} & \textbf{Value} \\
+\midrule
+Platform        & GitHub Copilot (\href{https://github.com}{github.com}) \\
+Agent type      & Copilot Coding Agent / Task Agent \\
+AI model        & Claude Sonnet (Anthropic) — version active in GitHub Copilot, April 2026 \\
+Interface       & Asynchronous task-based: user submits task; agent works autonomously on a branch and reports progress via Pull Requests \\
+Repository integration & Agent reads, creates, and edits files directly; all changes committed to a feature branch \\
+Execution environment & Sandboxed Linux container; ArcGIS Pro not available — agent reasoned from code and user-reported errors \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Important note:} The AI agent \textit{did not execute the ArcPy code
+itself}.  ArcGIS Pro is not available in the sandboxed cloud environment.
+The agent reasoned about correctness from the code text, the error messages
+reported by the user, and the unexpected output file sizes.  All actual raster
+processing was performed by the user on their local ArcGIS Pro installation.
+
+% =============================================================================
+\section{How to Run the Code from Scratch}
+\textit{(Step-by-step guide for non-experts)}
+% =============================================================================
+
+\subsection{Required Software}
+
+\begin{table}[h]
+\centering
+\caption{Software prerequisites.}
+\rowcolors{2}{lightgray}{white}
+\begin{tabularx}{\linewidth}{L{3.5cm}L{5cm}X}
+\toprule
+\textbf{Software} & \textbf{Source} & \textbf{Notes} \\
+\midrule
+ArcGIS Pro 3.x  & Institution software portal  & Requires \textbf{Spatial Analyst Extension} \\
+Jupyter Notebook & Installed with ArcGIS Pro or via \href{https://docs.conda.io}{conda} & Used to run blocks interactively \\
+R $\geq$ 4.1    & \href{https://cran.r-project.org/}{cran.r-project.org} & Free; for exploratory R scripts \\
+RStudio (optional) & \href{https://posit.co/}{posit.co} & Recommended R IDE \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Required Data}
+
+\begin{itemize}[noitemsep]
+  \item \textbf{\texttt{STTSTJ\_2m.tif}} — 2\,m bathymetry for St.\ Thomas /
+        St.\ John.  Must be placed at the path defined in
+        \texttt{WorkflowConfig.BATHYMETRY\_SOURCE\_TIF}.
+  \item \textbf{WCMC coral-reef shapefile} — used only in the R exploratory
+        script.
+  \item \textbf{Hard-coral survey points} — \texttt{hard\_corals\_data\_filtered.shp},
+        used only in the R exploratory script.
+\end{itemize}
+
+\subsection{Step 1 — Set Up Your Folder Structure}
+
+The script creates output folders automatically, but understanding the layout
+is helpful:
+
+\begin{lstlisting}[style=shell]
+02_terrain_analysis_outputs/
+├── 00_bathymetry_source/   <- input + reprojected bathymetry
+├── 00_intermediate/        <- temporary 2m files
+├── 01_slope/               <- final slope outputs (50m)
+├── 02_curvature/           <- curvature outputs (50m)
+└── 03_aspect/              <- aspect outputs (50m)
+\end{lstlisting}
+
+\subsection{Step 2 — Open the Script in Jupyter Notebook}
+
+\begin{enumerate}[noitemsep]
+  \item Open \textbf{ArcGIS Pro}.
+  \item In the ribbon: \textbf{Analysis $\to$ Python} to open the Python Notebook panel,
+        or open Jupyter Notebook from the Start menu (the ArcGIS Pro \texttt{conda}
+        environment includes Jupyter).
+  \item Navigate to the folder containing
+        \texttt{Coral\_Modeling\_Terrain\_Analysis\_USVI\_202604.py}.
+  \item Open the file.  If using a \texttt{.py} extension, copy its contents
+        into a new Jupyter Notebook (\texttt{.ipynb}) — one cell per BLOCK section.
+\end{enumerate}
+
+\subsection{Step 3 — Edit the File Paths}
+
+Before running any block, update the two path variables to match your system:
+
+\begin{lstlisting}[style=pycode]
+# In WorkflowConfig class (top of the script):
+PROJECT_ROOT = r"G:\Shared drives\NSF CoPE internal\..."  # <-- YOUR path
+BATHYMETRY_SOURCE_TIF = r"G:\...\STTSTJ_2m.tif"          # <-- YOUR path
+\end{lstlisting}
+
+Use the \textbf{full path} to the folder / file on your computer.
+The leading \texttt{r} before the quote means ``raw string'' and ensures
+Windows backslashes are interpreted correctly.
+
+\subsection{Step 4 — Run the Blocks in Order}
+
+Run each BLOCK cell one at a time.  \textbf{Do not skip blocks} on the first
+run.  Wait for each block to finish before running the next.
+
+\begin{table}[h]
+\centering
+\caption{Expected runtime per BLOCK.}
+\rowcolors{2}{lightgray}{white}
+\begin{tabular}{llr}
+\toprule
+\textbf{BLOCK} & \textbf{Action} & \textbf{Time} \\
+\midrule
+BLOCK 0     & Load configuration, check extensions         & $<$5\,s \\
+BLOCK 1     & Create folders; reproject bathymetry         & 1–2\,min \\
+BLOCK 2     & Validate bathymetry file                     & $<$5\,s \\
+Verification 2A & Print depth stats                         & $<$5\,s \\
+BLOCK 3     & Slope at 2\,m, aggregate to 50\,m           & 1–2\,min \\
+BLOCK 4     & Slope at 240\,m scale (large focal window)  & \textbf{5–8\,min} \\
+BLOCK 5     & Slope-of-slope from true 50\,m slope        & 30–40\,s \\
+BLOCK 6+6b  & Aspect at 2\,m; circular-mean aggregate to 50\,m & 2–3\,min \\
+BLOCK 7+7b  & Curvature at 2\,m; aggregate to 50\,m       & 1–2\,min \\
+BLOCK 8     & Final verification table                    & $<$10\,s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Each block prints messages beginning with \textbf{\cmark} (success) or
+\textbf{\xmark} (error).  \textit{Do not proceed to the next block if you see
+an error message.}
+
+\subsection{Step 5 — Verify the Final Outputs}
+
+After BLOCK\,8 runs successfully, the console should display all five rows with
+\cmark{} marks and cell size 50.0\,m (see Table\,5 above).
+
+\subsection{Step 6 (Optional) — Run the R Exploratory Script}
+
+\begin{enumerate}[noitemsep]
+  \item Open \textbf{RStudio}.
+  \item Open \texttt{01\_exploratory\_spatial\_analysis.R}.
+  \item Edit the \texttt{root} variable at the top to match your folder path.
+  \item Install required packages (first time only):
+\end{enumerate}
+
+\begin{lstlisting}[style=Rcode]
+install.packages(c("terra", "sf", "dplyr"))
+\end{lstlisting}
+
+\begin{enumerate}[noitemsep, resume]
+  \item Run the entire script (\texttt{Ctrl+Shift+Enter} in RStudio).
+\end{enumerate}
+
+The script will (a) clip the WCMC coral-reef polygon to the study area,
+(b) report CRS and resolution of all layers, and (c) count survey points
+inside/outside the coral mask.
+
+\subsection{Troubleshooting Common Errors}
+
+\begin{table}[h]
+\centering
+\caption{Common errors and solutions.}
+\rowcolors{2}{lightgray}{white}
+\begin{tabularx}{\linewidth}{L{5cm}L{4.5cm}X}
+\toprule
+\textbf{Error message} & \textbf{Likely cause} & \textbf{Solution} \\
+\midrule
+\texttt{FileNotFoundError: STTSTJ\_2m.tif not found}
+  & Path in \texttt{WorkflowConfig} is wrong
+  & Double-check the path; confirm the file exists \\
+\texttt{Spatial Analyst Extension unavailable}
+  & Extension not licensed / checked out
+  & ArcGIS Pro $\to$ Project $\to$ Licensing $\to$ Check out Spatial Analyst \\
+\texttt{PermissionError} writing to Google Drive
+  & Drive sync conflict
+  & Save to a local folder first; then copy to Drive \\
+BLOCK\,4 finishes in $<$10\,s
+  & Focal radius is wrong
+  & Confirm \texttt{FOCAL\_RADIUS\_240M\_at2m = 120} \\
+Output cell size is 2.0\,m instead of 50.0\,m
+  & Wrong \texttt{AGG\_FACTOR}
+  & Confirm \texttt{AGG\_FACTOR = 25} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% =============================================================================
+\section{Data Sources and File Naming}
+% =============================================================================
+
+\subsection{Primary Input Data}
+
+\begin{table}[h]
+\centering
+\caption{Input datasets.}
+\rowcolors{2}{lightgray}{white}
+\begin{tabularx}{\linewidth}{L{4cm}L{3.5cm}L{3cm}L{2cm}}
+\toprule
+\textbf{Dataset} & \textbf{Source} & \textbf{Native CRS} & \textbf{Resolution} \\
+\midrule
+\texttt{STTSTJ\_2m.tif} & NOAA / NSF CoPE & EPSG:26920 or :32620 & 2\,m \\
+WCMC CoralReef 2021 & UNEP-WCMC & Geographic WGS84 & vector \\
+Hard-coral survey points & NSF CoPE field surveys & Varies & vector \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Output Naming Convention}
+
+\begin{itemize}[noitemsep]
+  \item \texttt{*\_2m.tif} — computed at native 2\,m resolution (intermediate or archive).
+  \item \texttt{*\_50m.tif} — final product; every cell is a true
+        50\,m $\times$ 50\,m pixel in EPSG:32620.
+  \item \texttt{*\_240m\_50m.tif} — slope smoothed over a 240\,m neighbourhood,
+        aggregated to 50\,m cells.
+\end{itemize}
+
+% =============================================================================
+\section{Glossary}
+% =============================================================================
+
+\begin{table}[h]
+\centering
+\rowcolors{2}{lightgray}{white}
+\begin{tabularx}{\linewidth}{L{3.5cm}X}
+\toprule
+\textbf{Term} & \textbf{Definition} \\
+\midrule
+EPSG code
+  & Numerical identifier for a coordinate reference system.
+    EPSG:32620 = WGS\,84 / UTM Zone\,20N (used for most of the Caribbean). \\
+CRS
+  & Coordinate Reference System — the mathematical framework relating map
+    coordinates to positions on Earth. \\
+UTM
+  & Universal Transverse Mercator — a projected CRS using metres as units. \\
+Resolution / cell size
+  & Side length of each raster pixel.
+    50\,m means each pixel covers a 50\,m $\times$ 50\,m area on the ground. \\
+Aggregation
+  & Combining multiple small pixels into one larger pixel
+    (e.g.\ $25 \times 25 = 625$ pixels at 2\,m merged into one pixel at 50\,m). \\
+Focal statistics
+  & Moving-window operation where each pixel is replaced by a summary statistic
+    (e.g.\ mean) computed over a neighbourhood. \\
+Aspect
+  & Compass direction (0°–360°) that a slope face points toward. \\
+Curvature
+  & Rate of change of slope.
+    Positive $=$ convex (ridgeline); Negative $=$ concave (valley). \\
+Circular mean
+  & Correct method for averaging angular measurements that wrap at 0°/360°. \\
+\texttt{arcpy}
+  & Python package bundled with ArcGIS Pro providing access to all ArcGIS
+    geoprocessing tools. \\
+\texttt{terra}
+  & R package for raster and vector spatial analysis. \\
+Snap raster
+  & Reference raster forcing all outputs to align to the same grid origin and
+    cell boundaries. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% =============================================================================
+%  FOOTER
+% =============================================================================
+
+\vfill
+\begin{center}
+  \color{darkgray}\small
+  \rule{0.5\linewidth}{0.4pt}\\[4pt]
+  This document was generated by the \textbf{GitHub Copilot Coding Agent}
+  (Claude Sonnet, Anthropic) in collaboration with \textbf{J.\ Olaya},
+  April 2026.\\
+  It should be updated if the code or workflow changes significantly.\\[4pt]
+  Repository:
+  \href{https://github.com/jolaya80/jolaya80}{\texttt{github.com/jolaya80/jolaya80}}
+\end{center}
+
+\end{document}
