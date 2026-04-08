@@ -555,10 +555,23 @@ scenario_area_long <- bind_rows(
 
 library(ragg)
 library(scales)
-p <- ggplot(scenario_area_long, aes(x = scenario, y = percent, fill = class)) +
+
+# Build two-panel data for national stacked barplot
+scenario_area_2panel <- bind_rows(
+  scenario_area_long %>%
+    filter(scenario %in% c("Baseline", "Bleaching Only")) %>%
+    mutate(scenario_group = "Bleaching Only"),
+  scenario_area_long %>%
+    filter(scenario %in% c("Baseline", "Phase 1", "Bleaching", "Phase 2")) %>%
+    mutate(scenario_group = "With Restoration")
+) %>%
+  mutate(scenario_group = factor(scenario_group, levels = c("Bleaching Only", "With Restoration")))
+
+p_2panel <- ggplot(scenario_area_2panel, aes(x = scenario, y = percent, fill = class)) +
   geom_col(width = 0.7, color = "black", linewidth = 0.3) +
   scale_fill_manual(values = c("Degraded" = "red", "Healthy" = "turquoise3")) +
   scale_y_continuous(labels = percent_format(scale = 1), expand = expansion(mult = c(0, 0.02))) +
+  facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
   labs(
     x = "Scenario",
     y = "Percent of Total Coral Reef Area",
@@ -570,49 +583,55 @@ p <- ggplot(scenario_area_long, aes(x = scenario, y = percent, fill = class)) +
     axis.text.x = element_text(angle = 25, hjust = 1),
     panel.grid.major.x = element_blank(),
     panel.grid.minor = element_blank(),
-    
+
     # --- Legend arriba para optimizar espacio ---
     legend.position = "top",
     legend.direction = "horizontal",
     legend.box = "horizontal",
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 11),
-    
+
     # reduce un poco el espacio extra arriba
-    plot.margin = margin(t = 6, r = 8, b = 6, l = 8)
+    plot.margin = margin(t = 6, r = 8, b = 6, l = 8),
+    strip.text = element_text(face = "bold", size = 13)
   ) +
   guides(fill = guide_legend(nrow = 1, byrow = TRUE))
 
-p
+p_2panel
 
 # PNG alta calidad (300 dpi ok; si es "line art" puro puedes subir a 600)
 ggsave(
   filename = file.path(out_dir, "coral_cover_scenarios_stacked_barplot.png"),
-  plot = p,
+  plot = p_2panel,
   device = ragg::agg_png,
-  width = 12, height = 7, units = "in",
+  width = 14, height = 7, units = "in",
   dpi = 300,
   bg = "white"
 )
 
-## line plot
+## Two-panel national line plot: Bleaching Only vs With Restoration
 library(dplyr)
 library(ggplot2)
 library(scales)
 
-# 1) Prepare data (keep only Healthy class, order scenarios)
-healthy_area <- scenario_area_long %>%
-  filter(class == "Healthy", scenario != "Phase 2 Bleach") %>%
+# 1) Prepare two-panel healthy area data (national level)
+healthy_area_2panel <- bind_rows(
+  scenario_area_long %>%
+    filter(class == "Healthy", scenario %in% c("Baseline", "Bleaching Only")) %>%
+    mutate(scenario_group = "Bleaching Only"),
+  scenario_area_long %>%
+    filter(class == "Healthy", scenario %in% c("Baseline", "Phase 1", "Bleaching", "Phase 2")) %>%
+    mutate(scenario_group = "With Restoration")
+) %>%
   mutate(
-    scenario = factor(
-      scenario,
-      levels = c("Baseline", "Bleaching Only", "Phase 1", "Bleaching", "Phase 2")
-    )
+    scenario_group = factor(scenario_group, levels = c("Bleaching Only", "With Restoration")),
+    scenario = factor(scenario, levels = c("Baseline", "Bleaching Only", "Phase 1", "Bleaching", "Phase 2"))
   ) %>%
-  arrange(scenario)
+  arrange(scenario_group, scenario)
 
 # 2) Plot
-p_line <- ggplot(healthy_area, aes(x = scenario, y = area_km2, group = 1)) +
+p_line_2panel <- ggplot(healthy_area_2panel,
+                         aes(x = scenario, y = area_km2, group = scenario_group)) +
   geom_line(linewidth = 1.1, color = "#1B9E77") +
   geom_point(size = 3.2, color = "#1B9E77") +
   geom_text(
@@ -621,6 +640,7 @@ p_line <- ggplot(healthy_area, aes(x = scenario, y = area_km2, group = 1)) +
     size = 3.6,
     color = "#2B2B2B"
   ) +
+  facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
   scale_y_continuous(
     labels = label_number(accuracy = 1),
     expand = expansion(mult = c(0.02, 0.12))
@@ -641,19 +661,20 @@ p_line <- ggplot(healthy_area, aes(x = scenario, y = area_km2, group = 1)) +
     plot.title = element_text(face = "bold", size = 16),
     plot.subtitle = element_text(size = 12.5, color = "grey30"),
     axis.title = element_text(face = "bold"),
-    plot.caption = element_text(color = "grey40", size = 10)
+    plot.caption = element_text(color = "grey40", size = 10),
+    strip.text = element_text(face = "bold", size = 13)
   )
 
-p_line
+p_line_2panel
 
 out_dir_fig <- "G:/Shared drives/NSF CoPE internal/2 - Deliverables/Publications/Olaya_et_al_Belize_FisheryModel/figures"
 
 library(svglite)
 ggsave(
    filename = file.path(out_dir_fig, "Fig_HealthyCoralArea_byScenario_Belize.svg"),
-   plot = p_line,
+   plot = p_line_2panel,
    device = svglite::svglite,
-   width = 9, height = 5.2, units = "in"
+   width = 12, height = 5.2, units = "in"
  )
 
 # =============================================================
@@ -769,41 +790,55 @@ zones_healthy <- zones_healthy %>%
   mutate(scenario = fct_recode(scenario, "Bleaching" = "Phase 1 Bleach")) %>%
   mutate(scenario = fct_relevel(scenario, "Baseline", "Bleaching Only", "Phase 1", "Bleaching", "Phase 2"))
 
-### 2. Estimate National Scale Results
-# Create a summary dataframe for the total national area across all zones
-national_summary <- zones_healthy %>%
-  group_by(scenario) %>%
-  summarise(area_km2 = sum(area_km2, na.rm = TRUE)) %>%
-  mutate(zone = "National") # Label for internal reference
+### Build two-panel data for zone plots (Baseline appears in both panels)
+zones_healthy_2panel <- bind_rows(
+  zones_healthy %>%
+    filter(scenario %in% c("Baseline", "Bleaching Only")) %>%
+    mutate(scenario_group = "Bleaching Only"),
+  zones_healthy %>%
+    filter(scenario %in% c("Baseline", "Phase 1", "Bleaching", "Phase 2")) %>%
+    mutate(scenario_group = "With Restoration")
+) %>%
+  mutate(scenario_group = factor(scenario_group, levels = c("Bleaching Only", "With Restoration")))
 
-### Generate the Plot
-p_zone_area <- ggplot(zones_healthy, aes(x = scenario, y = area_km2, group = zone, color = zone)) +
+### National area per scenario and group (for dashed overlay line)
+national_summary_2panel <- zones_healthy_2panel %>%
+  group_by(scenario_group, scenario) %>%
+  summarise(area_km2 = sum(area_km2, na.rm = TRUE), .groups = "drop") %>%
+  mutate(zone = "National")
+
+### Zone area line plot (two panels)
+p_zone_area_2panel <- ggplot(zones_healthy_2panel,
+                              aes(x = scenario, y = area_km2, group = zone, color = zone)) +
   # Regional layers (Individual Fishing Zones)
   geom_line(linewidth = 1.05) +
   geom_point(size = 2.6) +
-  
-  # National scale layer (Dashed black line as requested by reviewer)
-  # 'group = 1' ensures the line connects across the factor levels
-  geom_line(data = national_summary, aes(x = scenario, y = area_km2, group = 1), 
+
+  # National scale layer (Dashed black line)
+  # 'group = 1' ensures the line connects across factor levels within each facet
+  geom_line(data = national_summary_2panel,
+            aes(x = scenario, y = area_km2, group = 1),
             linewidth = 1.2, linetype = "dashed", color = "black") +
-  geom_point(data = national_summary, aes(x = scenario, y = area_km2), 
+  geom_point(data = national_summary_2panel,
+             aes(x = scenario, y = area_km2),
              size = 3, shape = 18, color = "black") +
-  
+
+  facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
+
   # Axis Scaling
   scale_y_continuous(
     labels = label_number(accuracy = 0.1),
-    # Expand Y-axis to fit the higher national values
-    expand = expansion(mult = c(0.02, 0.15)) 
+    expand = expansion(mult = c(0.02, 0.15))
   ) +
   scale_color_brewer(palette = "Dark2") +
-  
-  # Labels and Titles (Professional English)
+
+  # Labels
   labs(
     x = NULL,
     y = expression(paste("Healthy coral area (", km^2, ")")),
     color = "Fishing Zone"
   ) +
-  
+
   # Visual Theme
   theme_minimal(base_size = 13) +
   theme(
@@ -811,35 +846,35 @@ p_zone_area <- ggplot(zones_healthy, aes(x = scenario, y = area_km2, group = zon
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_blank(),
     axis.text.x = element_text(angle = 20, hjust = 1),
-    plot.title = element_text(face = "bold", size = 16),
-    plot.subtitle = element_text(size = 12.5, color = "grey30"),
     axis.title = element_text(face = "bold"),
     plot.caption = element_text(color = "grey40", size = 10, hjust = 0),
     legend.position = "right",
-    legend.title = element_text(face = "bold")
+    legend.title = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 13)
   )
 
 # Display the final plot
-p_zone_area
+p_zone_area_2panel
 
 ggsave(
   filename = file.path(out_dir_fig, "Fig_HealthyCoralArea_byFishing_zone.svg"),
-  plot = p_zone_area,
+  plot = p_zone_area_2panel,
   device = svglite::svglite,
-  width = 9, height = 5.2, units = "in"
+  width = 12, height = 5.2, units = "in"
 )
 
-p_zone_prop <- ggplot(zones_healthy, aes(x = scenario, y = percent_zone, group = zone, color = zone)) +
+### Zone proportion line plot (two panels)
+p_zone_prop_2panel <- ggplot(zones_healthy_2panel,
+                              aes(x = scenario, y = percent_zone, group = zone, color = zone)) +
   geom_line(linewidth = 1.05) +
   geom_point(size = 2.6) +
+  facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
   scale_y_continuous(
     labels = label_number(accuracy = 0.1),
     expand = expansion(mult = c(0.02, 0.12))
   ) +
   scale_color_brewer(palette = "Dark2") +
   labs(
-    title = "Belize — Percentage of Healthy Coral Across Scenarios by Fishing Zone",
-    subtitle = "Each line represents one Fishing Zone (Healthy class only)",
     x = NULL,
     y = expression(paste("Proportion of Healthy coral area")),
     color = "Fishing Zone",
@@ -851,20 +886,19 @@ p_zone_prop <- ggplot(zones_healthy, aes(x = scenario, y = percent_zone, group =
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_blank(),
     axis.text.x = element_text(angle = 20, hjust = 1),
-    plot.title = element_text(face = "bold", size = 16),
-    plot.subtitle = element_text(size = 12.5, color = "grey30"),
     axis.title = element_text(face = "bold"),
     plot.caption = element_text(color = "grey40", size = 10),
     legend.position = "right",
-    legend.title = element_text(face = "bold")
+    legend.title = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 13)
   )
 
-p_zone_prop
+p_zone_prop_2panel
 ggsave(
   filename = file.path(out_dir_fig, "Fig_HealthyCoralProportion_byFishing_zone.svg"),
-  plot = p_zone_prop,
+  plot = p_zone_prop_2panel,
   device = svglite::svglite,
-  width = 9, height = 5.2, units = "in"
+  width = 12, height = 5.2, units = "in"
 )
 
 

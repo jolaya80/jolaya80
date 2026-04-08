@@ -672,20 +672,34 @@ total_long <- biomass_total_compare %>%
 
 write.csv(total_long, file.path(out_dir, "total_biomass_zone_scenarios.csv"), row.names = FALSE)
 
-## bar plot
-p_total <- ggplot(total_long, aes(x = Zone, y = Biomass_ton, fill = Scenario)) +
+## Two-panel comparative bar plot: Bleaching Only vs With Restoration
+total_long_2panel <- bind_rows(
+  total_long %>%
+    filter(Scenario %in% c("Baseline", "Bleaching Only")) %>%
+    mutate(scenario_group = "Bleaching Only"),
+  total_long %>%
+    filter(Scenario %in% c("Baseline", "Phase 1", "Bleaching", "Phase 2")) %>%
+    mutate(scenario_group = "With Restoration")
+) %>%
+  mutate(scenario_group = factor(scenario_group, levels = c("Bleaching Only", "With Restoration")))
+
+p_total_2panel <- ggplot(total_long_2panel, aes(x = Zone, y = Biomass_ton, fill = Scenario)) +
   geom_col(position = position_dodge(width = 0.75), width = 0.7) +
-  scale_fill_manual(values = c("Baseline" = "#004488", "Phase 1" = "#6699CC", "Bleaching Only" = "#DDAA33", "Bleaching" = "#CC6677", "Phase 2" = "#44AA99")) +
-  labs(title = NULL,
-       subtitle = NULL,
+  scale_fill_manual(values = c("Baseline" = "#004488", "Phase 1" = "#6699CC",
+                                "Bleaching Only" = "#DDAA33", "Bleaching" = "#CC6677",
+                                "Phase 2" = "#44AA99")) +
+  facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
+  labs(title = NULL, subtitle = NULL,
        x = NULL, y = "Biomass (tons)", fill = "Scenario") +
   theme_minimal(base_size = 14) +
-  theme(axis.text.x = element_text(angle = 25, hjust = 1), panel.grid.minor = element_blank())
+  theme(axis.text.x = element_text(angle = 25, hjust = 1),
+        panel.grid.minor = element_blank(),
+        strip.text = element_text(face = "bold", size = 13))
 
 ggsave(filename = file.path(tabplot_out_dir, "fish_biomass_total_by_zone_tons.tiff"),
-       plot = p_total, width = 11, height = 7, dpi = 600, compression = "lzw")
+       plot = p_total_2panel, width = 14, height = 7, dpi = 600, compression = "lzw")
 
-### line plot
+### Two-panel line plot: Bleaching Only vs With Restoration
 # ajusta el vector si tu orden deseado es distinto
 scenario_levels <- c("Baseline", "Phase 1", "Bleaching Only", "Phase 1 Bleach", "Phase 2")
 
@@ -712,47 +726,59 @@ library(dplyr)
 library(ggplot2)
 library(forcats)
 
-# Renaming "Phase 1 Bleach" to "Bleaching" and ordering levels 
+# Renaming "Phase 1 Bleach" to "Bleaching" and ordering levels
 # to match the sequence: Baseline -> Phase 1 -> Bleaching -> Phase 2
 total_long2 <- total_long2 %>%
   mutate(Scenario = fct_recode(Scenario, "Bleaching" = "Phase 1 Bleach")) %>%
   mutate(Scenario = fct_relevel(Scenario, "Baseline", "Phase 1", "Bleaching Only", "Bleaching", "Phase 2"))
 
-### 2. Calculate National Biomass Sum
-# Aggregating total biomass across all zones for each scenario
-national_biomass <- total_long2 %>%
-  group_by(Scenario) %>%
-  summarise(Biomass_ton = sum(Biomass_ton, na.rm = TRUE)) %>%
-  mutate(Zone = "National") # Identifying the aggregate group
+# Build two-panel data (Baseline appears in both panels as shared reference)
+total_long2_2panel <- bind_rows(
+  total_long2 %>%
+    filter(Scenario %in% c("Baseline", "Bleaching Only")) %>%
+    mutate(scenario_group = "Bleaching Only"),
+  total_long2 %>%
+    filter(Scenario %in% c("Baseline", "Phase 1", "Bleaching", "Phase 2")) %>%
+    mutate(scenario_group = "With Restoration")
+) %>%
+  mutate(scenario_group = factor(scenario_group, levels = c("Bleaching Only", "With Restoration")))
 
-p_total_line <- ggplot(total_long2, aes(x = Scenario, y = Biomass_ton, group = Zone, color = Zone)) +
+### National Biomass Sum per scenario group
+national_biomass_2panel <- total_long2_2panel %>%
+  group_by(scenario_group, Scenario) %>%
+  summarise(Biomass_ton = sum(Biomass_ton, na.rm = TRUE), .groups = "drop") %>%
+  mutate(Zone = "National")
+
+p_total_line_2panel <- ggplot(total_long2_2panel,
+                               aes(x = Scenario, y = Biomass_ton, group = Zone, color = Zone)) +
   # Regional layers (Individual Fishing Zones)
   geom_line(linewidth = 1.05) +
   geom_point(size = 2.6) +
-  
+
   # National layer (Dashed black line for total national biomass)
-  # 'group = 1' ensures the line connects across categorical levels
-  geom_line(data = national_biomass, aes(x = Scenario, y = Biomass_ton, group = 1), 
+  geom_line(data = national_biomass_2panel,
+            aes(x = Scenario, y = Biomass_ton, group = 1),
             linewidth = 1.2, linetype = "dashed", color = "black") +
-  geom_point(data = national_biomass, aes(x = Scenario, y = Biomass_ton), 
+  geom_point(data = national_biomass_2panel,
+             aes(x = Scenario, y = Biomass_ton),
              size = 3, shape = 18, color = "black") +
-  
+
+  facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
+
   # Axis Scaling
   scale_y_continuous(
     labels = label_number(accuracy = 0.1),
-    # Expand upper limit to fit the significantly higher national values
-    expand = expansion(mult = c(0.02, 0.15)) 
+    expand = expansion(mult = c(0.02, 0.15))
   ) +
-  # Using your pre-defined zone_cols to keep colors consistent across plots
   scale_color_manual(values = zone_cols) +
-  
-  # Labels and Titles (Professional English)
+
+  # Labels
   labs(
     x = NULL,
     y = "Biomass (tons)",
     color = "Zone"
   ) +
-  
+
   # Professional Theme
   theme_minimal(base_size = 13) +
   theme(
@@ -760,63 +786,70 @@ p_total_line <- ggplot(total_long2, aes(x = Scenario, y = Biomass_ton, group = Z
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_blank(),
     axis.text.x = element_text(angle = 20, hjust = 1),
-    plot.title = element_text(face = "bold", size = 16),
-    plot.subtitle = element_text(size = 12.5, color = "grey30"),
     axis.title = element_text(face = "bold"),
     plot.caption = element_text(color = "grey40", size = 10, hjust = 0),
     legend.position = "right",
-    legend.title = element_text(face = "bold")
+    legend.title = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 13)
   )
 
-p_total_line
+p_total_line_2panel
 
-# 1. Definimos la ruta de la carpeta (Usamos barras / para evitar errores en R)
+# Output folder for publication figures
 out_dir_fig <- "G:/Shared drives/NSF CoPE internal/2 - Deliverables/Publications/Olaya_et_al_Belize_FisheryModel/figures"
 
-# 2. Guardamos el plot
 ggsave(
   filename = file.path(out_dir_fig, "Fig_biomass_tons_byFishing_zone.svg"),
-  plot = p_total_line,
+  plot = p_total_line_2panel,
   device = svglite::svglite,
-  width = 9, 
-  height = 5.2, 
+  width = 12,
+  height = 5.2,
   units = "in",
-  fix_text_size = FALSE # Mantiene el tamaño de texto tal cual lo definiste en el plot
+  fix_text_size = FALSE
 )
 
 ########################################
 ########################################
-### plot delta biomass between scenarios
+### Two-panel delta biomass plots: Bleaching Only vs With Restoration
 # 1. Ensure the Scenario is a factor with your specific levels
-# This guarantees the x-axis order: Baseline -> Phase 1 -> Bleaching -> Phase 2
 scenario_levels <- c("Baseline", "Phase 1", "Bleaching Only", "Bleaching", "Phase 2")
 total_long <- total_long %>%
   mutate(Scenario = factor(Scenario, levels = scenario_levels)) %>%
   arrange(Zone, Scenario)
 
-# Calculate cumulative change starting from 0
-total_cumulative <- total_long %>%
-  group_by(Zone) %>%
+# Build two-panel long data for delta plots
+total_long_delta_2panel <- bind_rows(
+  total_long %>%
+    filter(Scenario %in% c("Baseline", "Bleaching Only")) %>%
+    mutate(scenario_group = "Bleaching Only"),
+  total_long %>%
+    filter(Scenario %in% c("Baseline", "Phase 1", "Bleaching", "Phase 2")) %>%
+    mutate(scenario_group = "With Restoration")
+) %>%
+  mutate(scenario_group = factor(scenario_group, levels = c("Bleaching Only", "With Restoration")))
+
+# Cumulative change relative to Baseline (per zone and scenario group)
+total_cumulative_2panel <- total_long_delta_2panel %>%
+  group_by(Zone, scenario_group) %>%
   arrange(Scenario) %>%
   mutate(
-    # Subtract the Baseline value from everything to see the relative change
-    Rel_Biomass = Biomass_ton - first(Biomass_ton),
-    # Keep the original baseline for the label
+    Rel_Biomass  = Biomass_ton - first(Biomass_ton),
     Starting_Val = first(Biomass_ton)
   ) %>%
   ungroup()
 
-ggplot(total_cumulative, aes(x = Scenario, y = Rel_Biomass, group = Zone, color = Zone)) +
+ggplot(total_cumulative_2panel, aes(x = Scenario, y = Rel_Biomass, group = Zone, color = Zone)) +
   # 1. The Zero Line (Crucial for showing net loss/gain)
   geom_hline(yintercept = 0, linetype = "solid", color = "black", size = 0.8) +
   # 2. Shaded area for 'Loss' territory
-  annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = 0, 
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = 0,
            fill = "red", alpha = 0.1) +
   # 3. Lines and Points
   geom_line(size = 1.2, alpha = 0.8) +
-  geom_point(aes(size = Starting_Val), alpha = 0.7) + 
+  geom_point(aes(size = Starting_Val), alpha = 0.7) +
+  facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
   scale_color_manual(values = zone_cols) +
-  scale_size_continuous(range = c(2, 6)) + # Adjust point size range
+  scale_size_continuous(range = c(2, 6)) +
   labs(
     title = "Net Biomass Change Relative to Baseline",
     subtitle = "Shaded area indicates net loss compared to starting conditions",
@@ -824,27 +857,30 @@ ggplot(total_cumulative, aes(x = Scenario, y = Rel_Biomass, group = Zone, color 
     x = "Restoration Scenarios",
     size = "Initial Biomass (t)"
   ) +
-  theme_minimal()
+  theme_minimal() +
+  theme(strip.text = element_text(face = "bold", size = 13))
 
-## using percentages
-total_indexed <- total_long %>%
-  group_by(Zone) %>%
+## Indexed to Baseline (per zone and scenario group)
+total_indexed_2panel <- total_long_delta_2panel %>%
+  group_by(Zone, scenario_group) %>%
   arrange(Scenario) %>%
   mutate(
     Indexed_Biomass = (Biomass_ton / first(Biomass_ton)) * 100
   ) %>%
   ungroup()
 
-ggplot(total_indexed, aes(x = Scenario, y = Indexed_Biomass, group = Zone, color = Zone)) +
+ggplot(total_indexed_2panel, aes(x = Scenario, y = Indexed_Biomass, group = Zone, color = Zone)) +
   geom_hline(yintercept = 100, linetype = "dashed") +
   geom_line(size = 1) +
   geom_point() +
+  facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
   scale_color_manual(values = zone_cols) +
   labs(
     title = "Relative Biomass Performance",
     y = "Biomass Index (Baseline = 100%)"
   ) +
-  theme_minimal()
+  theme_minimal() +
+  theme(strip.text = element_text(face = "bold", size = 13))
 
 
 ############################################################
@@ -891,103 +927,138 @@ density_long <- biomass_density_compare %>%
                names_to = "Scenario", values_to = "Density_ton_ha") %>%
   mutate(Scenario = factor(Scenario,
                            levels = c("baseline_ton_ha", "phase1_ton_ha", "bleaching_only_ton_ha", "phase1_bleach_ton_ha", "phase2_ton_ha"),
-                           labels = c("Baseline", "Phase 1", "Bleaching Only", "Phase 1 Bleach", "Phase 2")))
+                           labels = c("Baseline", "Phase 1", "Bleaching Only", "Bleaching", "Phase 2")))
 
-p_density <- ggplot(density_long, aes(x = Zone, y = Density_ton_ha, fill = Scenario)) +
+density_long_2panel <- bind_rows(
+  density_long %>%
+    filter(Scenario %in% c("Baseline", "Bleaching Only")) %>%
+    mutate(scenario_group = "Bleaching Only"),
+  density_long %>%
+    filter(Scenario %in% c("Baseline", "Phase 1", "Bleaching", "Phase 2")) %>%
+    mutate(scenario_group = "With Restoration")
+) %>%
+  mutate(scenario_group = factor(scenario_group, levels = c("Bleaching Only", "With Restoration")))
+
+p_density_2panel <- ggplot(density_long_2panel, aes(x = Zone, y = Density_ton_ha, fill = Scenario)) +
   geom_col(position = position_dodge(width = 0.75), width = 0.7) +
-  scale_fill_manual(values = c("Baseline" = "#004488", "Phase 1" = "#6699CC", "Bleaching Only" = "#DDAA33", "Phase 1 Bleach" = "#CC6677", "Phase 2" = "#44AA99")) +
+  scale_fill_manual(values = c("Baseline" = "#004488", "Phase 1" = "#6699CC",
+                                "Bleaching Only" = "#DDAA33", "Bleaching" = "#CC6677",
+                                "Phase 2" = "#44AA99")) +
+  facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
   labs(title = "Coral-Associated Fish Biomass Density per Fishing Zone",
        subtitle = "Mean biomass per coral area (tons per hectare)",
        x = "Fishing Zone", y = "Biomass density (tons/ha)", fill = "Scenario") +
   theme_minimal(base_size = 14) +
-  theme(axis.text.x = element_text(angle = 25, hjust = 1), panel.grid.minor = element_blank())
+  theme(axis.text.x = element_text(angle = 25, hjust = 1),
+        panel.grid.minor = element_blank(),
+        strip.text = element_text(face = "bold", size = 13))
 
 ggsave(filename = file.path(tabplot_out_dir, "fish_biomass_density_by_zone_ton_ha.tiff"),
-       plot = p_density, width = 11, height = 7, dpi = 600, compression = "lzw")
+       plot = p_density_2panel, width = 14, height = 7, dpi = 600, compression = "lzw")
 
 
-#### MAP WITH bIOMASS PER ZONE
+#### MAP WITH BIOMASS PER ZONE — TWO-SCENARIO COMPARISON
 # Libraries
 library(dplyr)
 library(sf)
 library(ggplot2)
+library(patchwork)
 
-# Input assumptions:
-# - biomass_total_compare: data.frame with columns zone_id, Zone, baseline_ton, phase1_ton, phase1_bleach_ton, phase2_ton
-# - fishing_zones_utm: sf polygons with column zone_id (integer) and Name (or use Zone from biomass table)
-# - out_dir or tabplot_out_dir exists
-
-# 1) Prepare data for plotting: pivot longer and join to polygons
-zone_map_df <- biomass_total_compare %>%
+# 1) Prepare data for each scenario group separately
+zone_map_bleach <- biomass_total_compare %>%
   tidyr::pivot_longer(
-    cols = c(baseline_ton, phase1_ton, bleaching_only_ton, phase1_bleach_ton, phase2_ton),
+    cols = c(baseline_ton, bleaching_only_ton),
     names_to = "Scenario",
     values_to = "Biomass_ton"
   ) %>%
   mutate(
     Scenario = factor(Scenario,
-                      levels = c("baseline_ton", "phase1_ton", "bleaching_only_ton", "phase1_bleach_ton", "phase2_ton"),
-                      labels = c("Baseline", "Phase 1", "Bleaching Only", "Phase 1 Bleach", "Phase 2"))
+                      levels = c("baseline_ton", "bleaching_only_ton"),
+                      labels = c("Baseline", "Bleaching Only"))
   )
 
-# Join to polygon data (left join to preserve only zones with geometry)
-zones_plot_sf <- fishing_zones_utm %>%
-  dplyr::select(zone_id, geometry) %>%
-  left_join(zone_map_df, by = "zone_id")
+zone_map_restoration <- biomass_total_compare %>%
+  tidyr::pivot_longer(
+    cols = c(baseline_ton, phase1_ton, phase1_bleach_ton, phase2_ton),
+    names_to = "Scenario",
+    values_to = "Biomass_ton"
+  ) %>%
+  mutate(
+    Scenario = factor(Scenario,
+                      levels = c("baseline_ton", "phase1_ton", "phase1_bleach_ton", "phase2_ton"),
+                      labels = c("Baseline", "Phase 1", "Bleaching", "Phase 2"))
+  )
 
-# 2) Shared color scale limits across scenarios
-vmax <- max(zones_plot_sf$Biomass_ton, na.rm = TRUE)
-vmin <- min(zones_plot_sf$Biomass_ton, na.rm = TRUE)
-# Optionally set lower bound to 0 if there are tiny negative/rounding artefacts:
-vmin <- min(0, vmin)
+# 2) Join to polygon data
+zones_sf_bleach <- fishing_zones_utm %>%
+  dplyr::select(zone_id, geometry) %>%
+  left_join(zone_map_bleach, by = "zone_id")
+
+zones_sf_restoration <- fishing_zones_utm %>%
+  dplyr::select(zone_id, geometry) %>%
+  left_join(zone_map_restoration, by = "zone_id")
+
+# 3) Shared color scale across both scenario groups
+all_biomass <- c(zones_sf_bleach$Biomass_ton, zones_sf_restoration$Biomass_ton)
+vmax <- max(all_biomass, na.rm = TRUE)
+vmin <- min(0, min(all_biomass, na.rm = TRUE))
 
 # Color ramp: red (low) -> white (mid) -> blue (high)
 col_ramp <- c("#b2182b", "#f7f7f7", "#2166ac")
 
-# 3) Plot faceted  map
-p_zones <- ggplot(data = zones_plot_sf) +
-  geom_sf(aes(fill = Biomass_ton), color = "black", size = 0.3) +
-  scale_fill_gradientn(
-    colours = col_ramp,
-    limits = c(vmin, vmax),
-    na.value = "lightgrey",
-    name = "Total biomass\n(metric tons - red = lower biomass, blue = higher biomass)",
-    # guide configured for horizontal bar
-    guide = guide_colorbar(
-      direction = "horizontal",
-      title.position = "top",
-      title.hjust = 0.5,
-      barwidth = 25,    # wider horizontal bar
-      barheight = 0.6
-    )
-  ) +
-  facet_wrap(~ Scenario, ncol = 5) +
-  coord_sf() +
-  theme_minimal(base_size = 13) +
+shared_fill <- scale_fill_gradientn(
+  colours = col_ramp,
+  limits = c(vmin, vmax),
+  na.value = "lightgrey",
+  name = "Total biomass\n(metric tons — red = lower, blue = higher)",
+  guide = guide_colorbar(
+    direction = "horizontal",
+    title.position = "top",
+    title.hjust = 0.5,
+    barwidth = 20,
+    barheight = 0.6
+  )
+)
+
+map_theme <- theme_minimal(base_size = 13) +
   theme(
-    # place legend below and make it horizontal
     legend.position = "bottom",
     legend.direction = "horizontal",
     legend.title = element_text(size = 10),
     legend.text = element_text(size = 9),
-    # keep titles above panels
-    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
-    plot.subtitle = element_text(size = 11, hjust = 0.5),
-    # panel / axis styling
     axis.text = element_blank(),
     axis.ticks = element_blank(),
     panel.grid = element_blank(),
-    strip.text = element_text(face = "bold", size = 12)
-  ) +
-  labs(
-    title = NULL,
-    subtitle = NULL
+    strip.text = element_text(face = "bold", size = 11),
+    plot.title = element_text(face = "bold", size = 12, hjust = 0.5)
   )
 
-# 4) Save high-res TIFF
-out_file <- file.path(tabplot_out_dir, "zones_biomass_4panel_tons.tiff")
-ggsave(out_file, p_zones, width = 10, height = 8, dpi = 600, compression = "lzw")
-message("Saved 4-panel zone maps to: ", out_file)
+# 4) Build each scenario-group panel
+p_zones_bleach <- ggplot(data = zones_sf_bleach) +
+  geom_sf(aes(fill = Biomass_ton), color = "black", size = 0.3) +
+  shared_fill +
+  facet_wrap(~ Scenario, ncol = 2) +
+  coord_sf() +
+  labs(title = "Scenario A: Bleaching Only") +
+  map_theme
 
-# 5) Print the plot to R session
-print(p_zones)
+p_zones_restoration <- ggplot(data = zones_sf_restoration) +
+  geom_sf(aes(fill = Biomass_ton), color = "black", size = 0.3) +
+  shared_fill +
+  facet_wrap(~ Scenario, ncol = 4) +
+  coord_sf() +
+  labs(title = "Scenario B: With Restoration") +
+  map_theme
+
+# 5) Combine vertically with a shared legend
+p_zones_2panel <- p_zones_bleach / p_zones_restoration +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
+
+# 6) Save high-res TIFF
+out_file <- file.path(tabplot_out_dir, "zones_biomass_4panel_tons.tiff")
+ggsave(out_file, p_zones_2panel, width = 14, height = 12, dpi = 600, compression = "lzw")
+message("Saved 2-scenario zone maps to: ", out_file)
+
+# 7) Print the plot to R session
+print(p_zones_2panel)
