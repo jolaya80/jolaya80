@@ -565,6 +565,13 @@ PROCESSING TIME: ~30-40 seconds
 
 Logger.header("BLOCK 5: SLOPE OF SLOPE (TERRAIN RUGGEDNESS)")
 
+# Ensure arcpy.sa names are available even when Block 3 was skipped
+from arcpy.sa import Raster, Slope  # noqa: F811 (re-import is harmless)
+
+# Ensure slope_50m path is defined even when Block 3 was skipped
+if 'slope_50m' not in dir():
+    slope_50m = os.path.join(output_dirs['slope'], "slope_50m.tif")
+
 slope_of_slope_50m = os.path.join(output_dirs['curvature'], "slope_of_slope_50m.tif")
 
 Logger.info("[1/1] Computing slope of slope from slope_50m.tif (true 50m)…")
@@ -618,6 +625,14 @@ Output files
 import math
 
 Logger.header("BLOCK 6 + 6b: ASPECT — 2m THEN AGGREGATED TO 50m (circular mean)")
+
+# Ensure arcpy.sa names are available even when Block 3 was skipped
+from arcpy.sa import Raster, Aspect  # noqa: F811
+from arcpy.sa import Aggregate as SA_Aggregate  # noqa: F811
+
+# Ensure bathymetry_positive is defined even when Block 3 was skipped
+if 'bathymetry_positive' not in dir():
+    bathymetry_positive = get_positive_bathymetry()
 
 aspect_2m  = os.path.join(output_dirs['aspect'], "aspect_2m.tif")
 aspect_sin_2m = os.path.join(output_dirs['intermediate'], "aspect_sin_2m.tif")
@@ -729,6 +744,14 @@ PROCESSING TIME: ~30-40 seconds (2m), ~20 seconds (aggregate)
 """
 
 Logger.header("BLOCK 7 + 7b: CURVATURE — 2m THEN AGGREGATED TO 50m")
+
+# Ensure arcpy.sa names are available even when Block 3 was skipped
+from arcpy.sa import Raster, Curvature  # noqa: F811
+from arcpy.sa import Aggregate as SA_Aggregate  # noqa: F811
+
+# Ensure bathymetry_positive is defined even when Block 3 was skipped
+if 'bathymetry_positive' not in dir():
+    bathymetry_positive = get_positive_bathymetry()
 
 curvature_2m  = os.path.join(output_dirs['curvature'], "curvature_2m.tif")
 curvature_50m = os.path.join(output_dirs['curvature'], "curvature_50m.tif")
