@@ -750,7 +750,8 @@ from arcpy.sa import Raster, Curvature  # noqa: F811
 from arcpy.sa import Aggregate as SA_Aggregate  # noqa: F811
 
 # Ensure bathymetry_positive is defined even when Block 3 was skipped
-if 'bathymetry_positive' not in dir():
+# Use globals() instead of dir() for reliable variable detection in Jupyter
+if 'bathymetry_positive' not in globals():
     bathymetry_positive = get_positive_bathymetry()
 
 curvature_2m  = os.path.join(output_dirs['curvature'], "curvature_2m.tif")
@@ -775,7 +776,7 @@ Logger.info("\n[2/2] Aggregating curvature 2m → 50m (factor=25, mean)…")
 try:
     result = SA_Aggregate(Raster(curvature_2m), config.AGG_FACTOR, "MEAN",
                           extent_handling="EXPAND", ignore_nodata="DATA")
-    result.save(curvature_50m)
+    _save_raster(result, curvature_50m, "curvature_50m.tif")
     Logger.info(f"✓ curvature_50m.tif created ({os.path.getsize(curvature_50m)/1e6:.1f} MB)")
     d = arcpy.Describe(curvature_50m)
     _r = arcpy.Raster(curvature_50m)
