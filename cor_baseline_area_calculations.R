@@ -492,6 +492,100 @@ ggplot(phase2_gains_by_zone,
   theme_minimal(base_size = 14)
 
 # =============================================================
+# Bleaching Only losses by zone
+# Pixels that were Healthy in Baseline and became Degraded
+# after the Bleaching Only scenario
+# =============================================================
+
+bleaching_only_loss_raster <- rast(
+  file.path(out_dir, "spatial_files/bleaching_only_loss.tif")
+)
+
+summarize_losses_by_zone <- function(change_raster, zones, zone_field) {
+
+  pixel_area_m2 <- prod(res(change_raster))
+
+  results <- lapply(1:nrow(zones), function(i) {
+
+    this_zone <- zones[i, ]
+    zone_id   <- as.character(this_zone[[zone_field]])
+
+    change_zone   <- mask(change_raster, this_zone)
+    lost_pixels   <- global(change_zone, "sum", na.rm = TRUE)[1, 1]
+
+    if (is.na(lost_pixels)) lost_pixels <- 0
+
+    tibble(
+      zone            = zone_id,
+      lost_pixels     = lost_pixels,
+      lost_area_m2    = lost_pixels * pixel_area_m2,
+      lost_area_km2   = (lost_pixels * pixel_area_m2) / 1e6
+    )
+  })
+
+  bind_rows(results)
+}
+
+bleaching_only_losses_by_zone <- summarize_losses_by_zone(
+  change_raster = bleaching_only_loss_raster,
+  zones         = fishing_zones_utm,
+  zone_field    = zone_field
+)
+
+bleaching_only_losses_by_zone
+
+# =============================================================
+# Diverging bar plot: Bleaching losses (left, red) vs
+# Phase 2 restoration gains (right, blue) by fishing zone
+# =============================================================
+
+diverging_data <- bind_rows(
+  phase2_gains_by_zone |>
+    select(zone, area_km2 = improved_area_km2) |>
+    mutate(direction = "Restored (Phase 2)",
+           bar_value  = area_km2),
+
+  bleaching_only_losses_by_zone |>
+    select(zone, area_km2 = lost_area_km2) |>
+    mutate(direction = "Lost (Bleaching Only)",
+           bar_value  = -area_km2)
+)
+
+# Order zones by net change (gains – losses)
+zone_order <- diverging_data |>
+  group_by(zone) |>
+  summarise(net = sum(bar_value), .groups = "drop") |>
+  arrange(net) |>
+  pull(zone)
+
+diverging_data <- diverging_data |>
+  mutate(zone = factor(zone, levels = zone_order))
+
+ggplot(diverging_data,
+       aes(x = zone, y = bar_value, fill = direction)) +
+  geom_col(color = "black", width = 0.7) +
+  geom_hline(yintercept = 0, color = "grey30", linewidth = 0.5) +
+  scale_fill_manual(
+    values = c(
+      "Lost (Bleaching Only)"  = "#D62728",
+      "Restored (Phase 2)"     = "turquoise3"
+    )
+  ) +
+  coord_flip() +
+  labs(
+    title    = "Coral Area Change by Fishing Zone",
+    subtitle = "Red: lost under Bleaching Only · Blue: recovered under Phase 2 restoration",
+    x        = "Fishing Zone",
+    y        = "Area (km²)  ←  Lost  |  Recovered  →",
+    fill     = NULL
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.major.y = element_blank()
+  )
+
+# =============================================================
 # Second bleaching event (on Phase 2)
 # =============================================================
 
