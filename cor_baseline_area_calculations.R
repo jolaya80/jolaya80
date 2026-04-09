@@ -793,7 +793,7 @@ phase1_bleach_zones <- summarize_coral_by_zones(
   phase1_bleach_class,
   fishing_zones_utm,   # << Correct CRS
   zone_field,
-  "Phase 1 Bleach"
+  "Bleaching"
 )
 
 phase2_zones <- summarize_coral_by_zones(
@@ -833,7 +833,7 @@ zones_all <- bind_rows(
                    "Healthy (≥15%)"  = "Healthy"),
     scenario = factor(
       scenario,
-      levels = c("Baseline", "Bleaching Only", "Phase 1", "Phase 1 Bleach",
+      levels = c("Baseline", "Bleaching Only", "Phase 1", "Bleaching",
                  "Phase 2", "Phase 2 Bleach")
     )
   )
@@ -842,24 +842,53 @@ zones_all
 write.csv(zones_all, file = "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/coral_cover_modeling/06_outputs/zones_all_restoration_outputs.csv")
 
 #-------------------- Plots
-# Line plot: Healthy coral across scenarios (by zone)
+# Two-panel line plot: Healthy coral (%) across scenarios (by zone)
+# Panel 1: Bleaching Only scenario  |  Panel 2: With Restoration pathway
 healthy_trend <- zones_all |>
-  filter(class == "Healthy")
+  filter(class == "Healthy", scenario != "Phase 2 Bleach") |>
+  mutate(
+    scenario = factor(
+      scenario,
+      levels = c("Baseline", "Bleaching Only", "Phase 1", "Bleaching", "Phase 2")
+    )
+  )
 
-ggplot(healthy_trend,
+healthy_trend_2panel <- bind_rows(
+  healthy_trend |>
+    filter(scenario %in% c("Baseline", "Bleaching Only")) |>
+    mutate(scenario_group = "Bleaching Only"),
+  healthy_trend |>
+    filter(scenario %in% c("Baseline", "Phase 1", "Bleaching", "Phase 2")) |>
+    mutate(scenario_group = "With Restoration")
+) |>
+  mutate(scenario_group = factor(scenario_group, levels = c("Bleaching Only", "With Restoration")))
+
+p_zone_pct_2panel <- ggplot(healthy_trend_2panel,
        aes(x = scenario, y = percent_zone, group = zone, color = zone)) +
   geom_line(linewidth = 1.2) +
   geom_point(size = 3) +
+  facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
   scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  scale_color_brewer(palette = "Dark2") +
   labs(
     title = "Trajectories of Healthy Coral (%) by Fishing Zone",
     subtitle = "Effects of restoration and bleaching over scenarios",
-    x = "Scenario",
+    x = NULL,
     y = "Healthy Coral (%)",
     color = "Fishing Zone"
   ) +
   theme_minimal(base_size = 13) +
-  theme(axis.text.x = element_text(angle = 25, hjust = 1))
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    axis.text.x = element_text(angle = 20, hjust = 1),
+    axis.title = element_text(face = "bold"),
+    legend.position = "right",
+    legend.title = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 13)
+  )
+
+p_zone_pct_2panel
 
 # Healthy coral area by Fishing Zone across scenarios (excluding "Phase 2 Bleach")
 zones_healthy <- zones_all %>%
@@ -867,22 +896,17 @@ zones_healthy <- zones_all %>%
   mutate(
     scenario = factor(
       scenario,
-      levels = c("Baseline", "Bleaching Only", "Phase 1", "Phase 1 Bleach", "Phase 2")
+      levels = c("Baseline", "Bleaching Only", "Phase 1", "Bleaching", "Phase 2")
     ),
     zone = factor(zone)  # keeps a stable legend order
   ) %>%
   arrange(zone, scenario)
 
 ### estimate national area and inlcuded in the plot
-## rename scenario 
 library(dplyr)
 library(ggplot2)
 library(scales)
 library(forcats) # Required for handling factor levels
-
-zones_healthy <- zones_healthy %>%
-  mutate(scenario = fct_recode(scenario, "Bleaching" = "Phase 1 Bleach")) %>%
-  mutate(scenario = fct_relevel(scenario, "Baseline", "Bleaching Only", "Phase 1", "Bleaching", "Phase 2"))
 
 ### Build two-panel data for zone plots (Baseline appears in both panels)
 zones_healthy_2panel <- bind_rows(
