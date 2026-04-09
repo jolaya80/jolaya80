@@ -831,6 +831,7 @@ zones_all <- bind_rows(
     class = recode(class,
                    "Degraded (<15%)" = "Degraded",
                    "Healthy (≥15%)"  = "Healthy"),
+    scenario = recode(as.character(scenario), "Phase 1 Bleach" = "Bleaching"),
     scenario = factor(
       scenario,
       levels = c("Baseline", "Bleaching Only", "Phase 1", "Bleaching",
