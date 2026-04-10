@@ -909,16 +909,45 @@ library(ggplot2)
 library(scales)
 library(forcats) # Required for handling factor levels
 
-### Build two-panel data for zone plots (Baseline appears in both panels)
+### Build two-panel data for zone plots with temporal x-axis labels
+# Bleaching Only panel: 4 time points where
+#   "1 Year"   = Baseline values (no change in this phase)
+#   "2 Years"  = Bleaching Only values (bleaching impact)
+#   "~5 Years" = Bleaching Only values (assumed no further change)
+# With Restoration panel: same values, renamed to temporal labels
 zones_healthy_2panel <- bind_rows(
+
+  # ---- Bleaching Only panel (4 synthetic time points) ----
   zones_healthy %>%
-    filter(scenario %in% c("Baseline", "Bleaching Only")) %>%
-    mutate(scenario_group = "Bleaching Only"),
+    filter(scenario == "Baseline") %>%
+    mutate(scenario = "Baseline", scenario_group = "Bleaching Only"),
+  zones_healthy %>%
+    filter(scenario == "Baseline") %>%
+    mutate(scenario = "1 Year", scenario_group = "Bleaching Only"),
+  zones_healthy %>%
+    filter(scenario == "Bleaching Only") %>%
+    mutate(scenario = "2 Years", scenario_group = "Bleaching Only"),
+  zones_healthy %>%
+    filter(scenario == "Bleaching Only") %>%
+    mutate(scenario = "~5 Years", scenario_group = "Bleaching Only"),
+
+  # ---- With Restoration panel (renamed to temporal labels) ----
   zones_healthy %>%
     filter(scenario %in% c("Baseline", "Phase 1", "Bleaching", "Phase 2")) %>%
-    mutate(scenario_group = "With Restoration")
+    mutate(
+      scenario = recode(as.character(scenario),
+                        "Baseline"  = "Baseline",
+                        "Phase 1"   = "1 Year",
+                        "Bleaching" = "2 Years",
+                        "Phase 2"   = "~5 Years"),
+      scenario_group = "With Restoration"
+    )
+
 ) %>%
-  mutate(scenario_group = factor(scenario_group, levels = c("Bleaching Only", "With Restoration")))
+  mutate(
+    scenario       = factor(scenario, levels = c("Baseline", "1 Year", "2 Years", "~5 Years")),
+    scenario_group = factor(scenario_group, levels = c("Bleaching Only", "With Restoration"))
+  )
 
 ### National area per scenario and group (for dashed overlay line)
 national_summary_2panel <- zones_healthy_2panel %>%
@@ -933,11 +962,11 @@ p_zone_area_2panel <- ggplot(zones_healthy_2panel,
   geom_line(linewidth = 1.05) +
   geom_point(size = 2.6) +
 
-  # National scale layer (Dashed black line)
+  # National scale layer (Dashed black line) — linetype mapped for legend entry
   # 'group = 1' ensures the line connects across factor levels within each facet
   geom_line(data = national_summary_2panel,
-            aes(x = scenario, y = area_km2, group = 1),
-            linewidth = 1.2, linetype = "dashed", color = "black") +
+            aes(x = scenario, y = area_km2, group = 1, linetype = "National total"),
+            linewidth = 1.2, color = "black") +
   geom_point(data = national_summary_2panel,
              aes(x = scenario, y = area_km2),
              size = 3, shape = 18, color = "black") +
@@ -950,6 +979,13 @@ p_zone_area_2panel <- ggplot(zones_healthy_2panel,
     expand = expansion(mult = c(0.02, 0.15))
   ) +
   scale_color_brewer(palette = "Dark2") +
+  scale_linetype_manual(
+    name   = NULL,
+    values = c("National total" = "dashed"),
+    guide  = guide_legend(
+      override.aes = list(color = "black", linewidth = 1.2, shape = NA)
+    )
+  ) +
 
   # Labels
   labs(
