@@ -487,6 +487,34 @@ writeRaster(bleaching_only_biomass_pixel,
             overwrite = TRUE)
 
 ############################################################
+# 8c. Bleaching Only – Phase 2 (~5 Years): partial fish recovery
+#     No coral restoration, but deep-reef fish biomass recovers +12%
+#     on pixels that bleached (Healthy baseline → Degraded in bleaching_only).
+#     Shallow bleached pixels and never-bleached pixels are unchanged.
+############################################################
+
+# Initialize from the post-bleach Bleaching Only raster
+bleaching_only_phase2_biomass_pixel <- bleaching_only_biomass_pixel
+names(bleaching_only_phase2_biomass_pixel) <- "bleaching_only_phase2_biomass_g_per_pixel"
+
+# Depth mask: pixels deeper than 10 m (depth values are negative; <= -10 means >= 10 m deep)
+deep_mask <- depth_res <= -10
+
+# Deep recovery: bleached pixels (baseline Healthy → bleaching_only Degraded) that are deep
+bleaching_only_deep_recovery <- bleaching_only_loss_pixels & deep_mask
+
+# Apply +12% to those deep pixels relative to the post-bleach biomass
+bleaching_only_phase2_biomass_pixel[bleaching_only_deep_recovery] <-
+  bleaching_only_biomass_pixel[bleaching_only_deep_recovery] * 1.12
+
+# Note: shallow bleached pixels keep their bleaching_only_biomass_pixel values;
+#       never-bleached pixels retain baseline values (inherited from initialisation).
+
+writeRaster(bleaching_only_phase2_biomass_pixel,
+            filename = file.path(spatial_out_dir, "bleaching_only_phase2_fish_biomass_g_per_pixel.tif"),
+            overwrite = TRUE)
+
+############################################################
 # 9. Phase 2: continuation of restoration (6×)
 #    + depth-based partial recovery (+12%) for deep bleached reefs
 ############################################################
@@ -583,8 +611,7 @@ for (z in all_zones) {
 # Depth rule:
 # deep > 10 m: +12% biomass
 # 4) Depth-based adjustment for pixels degraded by bleaching and not restored by Phase 2
-# Identify deep (depths negative; deeper than 10 m)
-deep_mask <- depth_res <= -10   # TRUE for depth >= 10 m (negative values)
+# deep_mask already defined in section 8c above
 
 # Pixels that were healthy in Phase 1 but degraded by bleaching (phase1 -> bleach)
 bleach_degraded <- (phase1_class == 2) & (bleach_class == 1)
@@ -640,6 +667,10 @@ phase1_bleach_total <- safe_zonal(phase1_bleach_biomass_pixel, zones_raster, "ph
 bleaching_only_total <- safe_zonal(bleaching_only_biomass_pixel, zones_raster, "bleaching_only_g_sum", fun_type = "sum") %>%
   mutate(bleaching_only_kg = g_to_kg(bleaching_only_g_sum), bleaching_only_ton = kg_to_ton(bleaching_only_kg))
 
+# sum for bleaching_only ~5 Years scenario (deep +12% partial recovery, no coral restoration)
+bleaching_only_phase2_total <- safe_zonal(bleaching_only_phase2_biomass_pixel, zones_raster, "bleaching_only_phase2_g_sum", fun_type = "sum") %>%
+  mutate(bleaching_only_phase2_kg = g_to_kg(bleaching_only_phase2_g_sum), bleaching_only_phase2_ton = kg_to_ton(bleaching_only_phase2_kg))
+
 # sum after phase 2 restoration
 phase2_total <- safe_zonal(phase2_biomass_pixel, zones_raster, "phase2_g_sum", fun_type = "sum") %>%
   mutate(phase2_kg = g_to_kg(phase2_g_sum), phase2_ton = kg_to_ton(phase2_kg))
@@ -648,25 +679,26 @@ phase2_total <- safe_zonal(phase2_biomass_pixel, zones_raster, "phase2_g_sum", f
 biomass_total_compare <- baseline_total %>%
   left_join(phase1_total %>% dplyr::select(zone_id, phase1_ton), by = "zone_id") %>%
   left_join(bleaching_only_total %>% dplyr::select(zone_id, bleaching_only_ton), by = "zone_id") %>%
+  left_join(bleaching_only_phase2_total %>% dplyr::select(zone_id, bleaching_only_phase2_ton), by = "zone_id") %>%
   left_join(phase1_bleach_total %>% dplyr::select(zone_id, phase1_bleach_ton), by = "zone_id") %>%
   left_join(phase2_total %>% dplyr::select(zone_id, phase2_ton), by = "zone_id") %>%
   left_join(zone_table, by = "zone_id") %>%
-  dplyr::select(Zone, zone_id, baseline_ton, phase1_ton, bleaching_only_ton, phase1_bleach_ton, phase2_ton)
+  dplyr::select(Zone, zone_id, baseline_ton, phase1_ton, bleaching_only_ton, bleaching_only_phase2_ton, phase1_bleach_ton, phase2_ton)
 
 write_xlsx(biomass_total_compare, path = file.path(tabplot_out_dir, "fish_biomass_total_by_zone_tons.xlsx"))
 
 # Plot totals
 total_long <- biomass_total_compare %>%
   pivot_longer(
-    cols = c(baseline_ton, phase1_ton, bleaching_only_ton, phase1_bleach_ton, phase2_ton),
+    cols = c(baseline_ton, phase1_ton, bleaching_only_ton, bleaching_only_phase2_ton, phase1_bleach_ton, phase2_ton),
     names_to = "Scenario",
     values_to = "Biomass_ton"
   ) %>%
   mutate(
     Scenario = factor(
       Scenario,
-      levels = c("baseline_ton", "phase1_ton", "bleaching_only_ton", "phase1_bleach_ton", "phase2_ton"),
-      labels = c("Baseline", "Phase 1", "Bleaching Only", "Bleaching", "Phase 2")
+      levels = c("baseline_ton", "phase1_ton", "bleaching_only_ton", "bleaching_only_phase2_ton", "phase1_bleach_ton", "phase2_ton"),
+      labels = c("Baseline", "Phase 1", "Bleaching Only", "Bleaching Only Phase 2", "Bleaching", "Phase 2")
     )
   )
 
@@ -700,50 +732,69 @@ ggsave(filename = file.path(tabplot_out_dir, "fish_biomass_total_by_zone_tons.ti
        plot = p_total_2panel, width = 14, height = 7, dpi = 600, compression = "lzw")
 
 ### Two-panel line plot: Bleaching Only vs With Restoration
-# ajusta el vector si tu orden deseado es distinto
-scenario_levels <- c("Baseline", "Phase 1", "Bleaching Only", "Phase 1 Bleach", "Phase 2")
-
-total_long2 <- total_long |>
-  dplyr::mutate(
-    Scenario = factor(Scenario, levels = scenario_levels),
-    Zone = factor(Zone)  # por si viene como character/numeric
-  )
-
-# crea un vector named con los colores Dark2 asignados al conjunto de zonas (en orden de niveles)
-zone_levels <- levels(factor(total_long2$Zone))  # keeps current factor order if it exists
-if (is.null(zone_levels)) zone_levels <- sort(unique(as.character(total_long2$Zone)))
-
-zone_levels <- as.character(zone_levels)
-
-zone_cols <- setNames(
-  RColorBrewer::brewer.pal(n = length(zone_levels), name = "Dark2"),
-  zone_levels
-)
-
+# Temporal x-axis labels mirror those used in the coral-coverage analysis:
+#   Baseline = Year 0 | 1 Year | 2 Years | ~5 Years
+#
+# Bleaching Only panel — 4 synthetic time points:
+#   "Baseline"  = baseline values (Year 0)
+#   "1 Year"    = baseline values (no change without restoration)
+#   "2 Years"   = bleaching_only values (bleaching impact on baseline)
+#   "~5 Years"  = bleaching_only_phase2 values (deep +12% recovery, no coral restoration)
+#
+# With Restoration panel — same values, renamed to temporal labels:
+#   "Baseline"  = Baseline | "1 Year" = Phase 1 | "2 Years" = Bleaching | "~5 Years" = Phase 2
 
 library(scales)
 library(dplyr)
 library(ggplot2)
 library(forcats)
 
-# Renaming "Phase 1 Bleach" to "Bleaching" and ordering levels
-# to match the sequence: Baseline -> Phase 1 -> Bleaching -> Phase 2
-total_long2 <- total_long2 %>%
-  mutate(Scenario = fct_recode(Scenario, "Bleaching" = "Phase 1 Bleach")) %>%
-  mutate(Scenario = fct_relevel(Scenario, "Baseline", "Phase 1", "Bleaching Only", "Bleaching", "Phase 2"))
+# Zone colour palette (Dark2) — derived from total_long zone levels
+zone_levels <- levels(factor(total_long$Zone))
+if (is.null(zone_levels)) zone_levels <- sort(unique(as.character(total_long$Zone)))
+zone_levels <- as.character(zone_levels)
+zone_cols <- setNames(
+  RColorBrewer::brewer.pal(n = length(zone_levels), name = "Dark2"),
+  zone_levels
+)
 
-# Build two-panel data (Baseline appears in both panels as shared reference)
+# Build two-panel long data with temporal x-axis labels
 total_long2_2panel <- bind_rows(
-  total_long2 %>%
-    filter(Scenario %in% c("Baseline", "Bleaching Only")) %>%
-    mutate(scenario_group = "Bleaching Only"),
-  total_long2 %>%
-    filter(Scenario %in% c("Baseline", "Phase 1", "Bleaching", "Phase 2")) %>%
-    mutate(scenario_group = "With Restoration")
-) %>%
-  mutate(scenario_group = factor(scenario_group, levels = c("Bleaching Only", "With Restoration")))
 
-### National Biomass Sum per scenario group
+  # ---- Bleaching Only panel (4 synthetic time points) ----
+  total_long %>%
+    filter(Scenario == "Baseline") %>%
+    mutate(Scenario = "Baseline", scenario_group = "Bleaching Only"),
+  total_long %>%
+    filter(Scenario == "Baseline") %>%
+    mutate(Scenario = "1 Year", scenario_group = "Bleaching Only"),
+  total_long %>%
+    filter(Scenario == "Bleaching Only") %>%
+    mutate(Scenario = "2 Years", scenario_group = "Bleaching Only"),
+  total_long %>%
+    filter(Scenario == "Bleaching Only Phase 2") %>%
+    mutate(Scenario = "~5 Years", scenario_group = "Bleaching Only"),
+
+  # ---- With Restoration panel (renamed to temporal labels) ----
+  total_long %>%
+    filter(Scenario %in% c("Baseline", "Phase 1", "Bleaching", "Phase 2")) %>%
+    mutate(
+      Scenario = recode(as.character(Scenario),
+                        "Baseline" = "Baseline",
+                        "Phase 1"  = "1 Year",
+                        "Bleaching" = "2 Years",
+                        "Phase 2"  = "~5 Years"),
+      scenario_group = "With Restoration"
+    )
+
+) %>%
+  mutate(
+    Scenario       = factor(Scenario, levels = c("Baseline", "1 Year", "2 Years", "~5 Years")),
+    scenario_group = factor(scenario_group, levels = c("Bleaching Only", "With Restoration")),
+    Zone           = factor(Zone)
+  )
+
+### National Biomass Sum per scenario group (dashed overlay line)
 national_biomass_2panel <- total_long2_2panel %>%
   group_by(scenario_group, Scenario) %>%
   summarise(Biomass_ton = sum(Biomass_ton, na.rm = TRUE), .groups = "drop") %>%
@@ -755,10 +806,10 @@ p_total_line_2panel <- ggplot(total_long2_2panel,
   geom_line(linewidth = 1.05) +
   geom_point(size = 2.6) +
 
-  # National layer (Dashed black line for total national biomass)
+  # National layer (Dashed black line) — linetype mapped for legend entry
   geom_line(data = national_biomass_2panel,
-            aes(x = Scenario, y = Biomass_ton, group = 1),
-            linewidth = 1.2, linetype = "dashed", color = "black") +
+            aes(x = Scenario, y = Biomass_ton, group = 1, linetype = "National total"),
+            linewidth = 1.2, color = "black") +
   geom_point(data = national_biomass_2panel,
              aes(x = Scenario, y = Biomass_ton),
              size = 3, shape = 18, color = "black") +
@@ -771,6 +822,13 @@ p_total_line_2panel <- ggplot(total_long2_2panel,
     expand = expansion(mult = c(0.02, 0.15))
   ) +
   scale_color_manual(values = zone_cols) +
+  scale_linetype_manual(
+    name   = NULL,
+    values = c("National total" = "dashed"),
+    guide  = guide_legend(
+      override.aes = list(color = "black", linewidth = 1.2, shape = NA)
+    )
+  ) +
 
   # Labels
   labs(
