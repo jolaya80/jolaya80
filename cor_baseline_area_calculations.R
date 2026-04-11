@@ -50,9 +50,13 @@ mask_0_5m  <- depth_res >= -5
 # mid-depth reef 5–10 m (>= -10 m AND < -5 m)
 mask_5_10m <- depth_res >= -10 & depth_res < -5
 
+# deep reef >10 m (< -10 m); bleaching attenuated ~12% loss (Hughes et al. 2018, doi:10.3354/meps12732)
+mask_10_27m <- depth_res < -10
+
 # sanity: resample to coral grid
-mask_0_5m    <- resample(mask_0_5m, baseline, method="near")
-mask_5_10m   <- resample(mask_5_10m, baseline, method="near")
+mask_0_5m    <- resample(mask_0_5m,   baseline, method="near")
+mask_5_10m   <- resample(mask_5_10m,  baseline, method="near")
+mask_10_27m  <- resample(mask_10_27m, baseline, method="near")
 
 #---- define fishing zone names
 zone_field <- "Name"
@@ -114,9 +118,10 @@ increase_coral_relative <- function(r, factor, degraded_mask) {
 # NEW bleaching function:
 #   0–5 m   : 50% loss
 #   5–10 m  : 25% loss
+#   >10 m   : 12% loss  (Hughes et al. 2018, doi:10.3354/meps12732)
 # ============================================================
 
-apply_bleaching_depth <- function(r, mask_0_5m, mask_5_10m){
+apply_bleaching_depth <- function(r, mask_0_5m, mask_5_10m, mask_10_27m){
   
   # Start copy
   r_new <- r
@@ -126,6 +131,9 @@ apply_bleaching_depth <- function(r, mask_0_5m, mask_5_10m){
   
   # 25% loss for 5–10 m
   r_new[mask_5_10m] <- r[mask_5_10m] * (1 - 0.25)
+  
+  # 12% loss for >10 m (curvilinear attenuation, deep mesophotic)
+  r_new[mask_10_27m] <- r[mask_10_27m] * (1 - 0.12)
   
   # No negatives
   r_new[r_new < 0] <- 0
@@ -216,8 +224,9 @@ ggplot(baseline_area,
 
 bleaching_only <- apply_bleaching_depth(
   r = baseline,
-  mask_0_5m  = mask_0_5m,
-  mask_5_10m = mask_5_10m
+  mask_0_5m   = mask_0_5m,
+  mask_5_10m  = mask_5_10m,
+  mask_10_27m = mask_10_27m
 )
 
 writeRaster(bleaching_only, file.path(out_dir, "bleaching_only_coral_cover.tif"), overwrite=TRUE)
@@ -328,8 +337,9 @@ plot(
 # =============================================================
 phase1_bleach <- apply_bleaching_depth(
   r = phase1,
-  mask_0_5m  = mask_0_5m,
-  mask_5_10m = mask_5_10m
+  mask_0_5m   = mask_0_5m,
+  mask_5_10m  = mask_5_10m,
+  mask_10_27m = mask_10_27m
 )
 
 writeRaster(phase1_bleach, file.path(out_dir, "phase1_bleach_coral_cover.tif"), overwrite=TRUE)
@@ -592,8 +602,9 @@ ggplot(diverging_data,
 # Bleaching on Phase 2
 phase2_bleach <- apply_bleaching_depth(
   r = phase2,
-  mask_0_5m  = mask_0_5m,
-  mask_5_10m = mask_5_10m
+  mask_0_5m   = mask_0_5m,
+  mask_5_10m  = mask_5_10m,
+  mask_10_27m = mask_10_27m
 )
 
 writeRaster(phase2_bleach, file.path(out_dir, "phase2_bleach_coral_cover.tif"), overwrite=TRUE)
