@@ -488,9 +488,9 @@ writeRaster(bleaching_only_biomass_pixel,
 
 ############################################################
 # 8c. Bleaching Only – Phase 2 (~5 Years): partial fish recovery
-#     No coral restoration, but deep-reef fish biomass recovers +12%
-#     on pixels that bleached (Healthy baseline → Degraded in bleaching_only).
-#     Shallow bleached pixels and never-bleached pixels are unchanged.
+#     No coral restoration, but fish biomass recovers +12% on ALL pixels
+#     that bleached (Healthy baseline → Degraded in bleaching_only).
+#     Never-bleached pixels are unchanged.
 ############################################################
 
 # Initialize from the post-bleach Bleaching Only raster
@@ -498,17 +498,21 @@ bleaching_only_phase2_biomass_pixel <- bleaching_only_biomass_pixel
 names(bleaching_only_phase2_biomass_pixel) <- "bleaching_only_phase2_biomass_g_per_pixel"
 
 # Depth mask: pixels deeper than 10 m (depth values are negative; <= -10 means >= 10 m deep)
+# Defined here for use in section 9 (phase2 deep-recovery rule).
 deep_mask <- depth_res <= -10
 
-# Deep recovery: bleached pixels (baseline Healthy → bleaching_only Degraded) that are deep
-bleaching_only_deep_recovery <- bleaching_only_loss_pixels & deep_mask
+# Recovery pixels: all bleached pixels (baseline Healthy → bleaching_only Degraded).
+# Note: the bleaching model (apply_bleaching_depth) only reduces coral cover at 0–10 m,
+# so bleaching_only_loss_pixels contains only shallow pixels. Applying the +12% recovery
+# to all bleached pixels (not filtered by deep_mask) ensures the recovery is actually applied.
+bleaching_only_recovery <- bleaching_only_loss_pixels
 
-# Apply +12% to those deep pixels relative to the post-bleach biomass
-bleaching_only_phase2_biomass_pixel[bleaching_only_deep_recovery] <-
-  bleaching_only_biomass_pixel[bleaching_only_deep_recovery] * 1.12
+# Apply +12% to all bleached pixels relative to the post-bleach biomass
+bleaching_only_phase2_biomass_pixel[bleaching_only_recovery] <-
+  bleaching_only_biomass_pixel[bleaching_only_recovery] * 1.12
 
-# Note: shallow bleached pixels keep their bleaching_only_biomass_pixel values;
-#       never-bleached pixels retain baseline values (inherited from initialisation).
+# Note: never-bleached pixels retain their bleaching_only_biomass_pixel values
+#       (inherited from initialisation).
 
 writeRaster(bleaching_only_phase2_biomass_pixel,
             filename = file.path(spatial_out_dir, "bleaching_only_phase2_fish_biomass_g_per_pixel.tif"),
