@@ -628,6 +628,170 @@ ggplot(
   ) +
   theme_minimal(base_size = 14)
 
+############################################################
+## Two-panel comparative visualizations: No Intervention vs With Restoration
+## Mirrors the pattern in fish_biomass_scenarios_calculation.R
+############################################################
+
+library(scales)
+library(forcats)
+library(RColorBrewer)
+
+## 2a. Two-panel data: No Intervention vs With Restoration
+zone_catch_2panel <- bind_rows(
+  zone_catch_scenarios %>%
+    filter(Scenario %in% c("Baseline", "Bleaching Only")) %>%
+    mutate(scenario_group = "No Intervention"),
+  zone_catch_scenarios %>%
+    filter(Scenario %in% c("Baseline", "Phase 1", "Bleaching", "Phase 2")) %>%
+    mutate(scenario_group = "With Restoration")
+) %>%
+  mutate(scenario_group = factor(scenario_group,
+                                 levels = c("No Intervention", "With Restoration")))
+
+## 2b. Two-panel data with temporal x-axis labels
+zone_catch_2panel_temporal <- bind_rows(
+
+  # ---- No Intervention panel (4 synthetic time points) ----
+  zone_catch_scenarios %>%
+    filter(Scenario == "Baseline") %>%
+    mutate(Scenario = "Year zero", scenario_group = "No Intervention"),
+  zone_catch_scenarios %>%
+    filter(Scenario == "Baseline") %>%
+    mutate(Scenario = "1 Year", scenario_group = "No Intervention"),
+  zone_catch_scenarios %>%
+    filter(Scenario == "Bleaching Only") %>%
+    mutate(Scenario = "2 Years", scenario_group = "No Intervention"),
+  zone_catch_scenarios %>%
+    filter(Scenario == "Bleaching Only Phase 2") %>%
+    mutate(Scenario = "~5 Years", scenario_group = "No Intervention"),
+
+  # ---- With Restoration panel (renamed to temporal labels) ----
+  zone_catch_scenarios %>%
+    filter(Scenario %in% c("Baseline", "Phase 1", "Bleaching", "Phase 2")) %>%
+    mutate(
+      Scenario = recode(as.character(Scenario),
+                        "Baseline"  = "Year zero",
+                        "Phase 1"   = "1 Year",
+                        "Bleaching" = "2 Years",
+                        "Phase 2"   = "~5 Years"),
+      scenario_group = "With Restoration"
+    )
+
+) %>%
+  mutate(
+    Scenario       = factor(Scenario, levels = c("Year zero", "1 Year", "2 Years", "~5 Years")),
+    scenario_group = factor(scenario_group, levels = c("No Intervention", "With Restoration")),
+    Zone           = factor(Zone.y)
+  )
+
+## 2c. Assign scenario_group to zone_change for comparative scatter plot
+zone_change_2panel <- zone_change %>%
+  filter(Scenario != "Baseline") %>%
+  mutate(
+    scenario_group = case_when(
+      Scenario %in% c("Bleaching Only", "Bleaching Only Phase 2") ~ "No Intervention",
+      TRUE ~ "With Restoration"
+    ),
+    scenario_group = factor(scenario_group,
+                            levels = c("No Intervention", "With Restoration"))
+  )
+
+ggplot(zone_change_2panel,
+       aes(x = biomass_change, y = catch_change, color = Scenario)) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey40") +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "grey40") +
+  geom_point(size = 4) +
+  geom_text(aes(label = Zone), vjust = -0.8, size = 3.5) +
+  facet_wrap(~ scenario_group, ncol = 2) +
+  scale_color_brewer(palette = "Set1") +
+  labs(
+    x        = "Relative Fish Biomass (Scenario / Baseline)",
+    y        = "Relative Catch (Scenario / Baseline)",
+    color    = "Scenario"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 13))
+
+## Zone colour palette (Dark2) — consistent with biomass script
+zone_levels_cpue <- levels(zone_catch_2panel_temporal$Zone)
+if (is.null(zone_levels_cpue) || length(zone_levels_cpue) == 0) {
+  zone_levels_cpue <- sort(unique(as.character(zone_catch_2panel_temporal$Zone)))
+}
+zone_cols_cpue <- setNames(
+  RColorBrewer::brewer.pal(n = max(3, length(zone_levels_cpue)), name = "Dark2")[seq_along(zone_levels_cpue)],
+  zone_levels_cpue
+)
+
+## National catch total per scenario_group (dashed overlay line)
+national_catch_2panel <- zone_catch_2panel_temporal %>%
+  group_by(scenario_group, Scenario) %>%
+  summarise(total_catch = sum(total_catch, na.rm = TRUE), .groups = "drop") %>%
+  mutate(Zone = "National")
+
+## 2d. Two-panel line plot: p_cpue_line_2panel
+p_cpue_line_2panel <- ggplot(zone_catch_2panel_temporal,
+                              aes(x = Scenario, y = total_catch,
+                                  group = Zone, color = Zone)) +
+
+  # Regional lines
+  geom_line(linewidth = 1.05) +
+  geom_point(size = 2.6) +
+
+  # National total (dashed black line)
+  geom_line(data = national_catch_2panel,
+            aes(x = Scenario, y = total_catch, group = 1,
+                linetype = "National total"),
+            linewidth = 1.2, color = "black") +
+  geom_point(data = national_catch_2panel,
+             aes(x = Scenario, y = total_catch),
+             size = 3, shape = 18, color = "black") +
+
+  facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
+
+  scale_y_continuous(
+    labels = scales::label_number(accuracy = 0.1),
+    expand = expansion(mult = c(0.02, 0.15))
+  ) +
+  scale_color_manual(values = zone_cols_cpue) +
+  scale_linetype_manual(
+    name   = NULL,
+    values = c("National total" = "dashed"),
+    guide  = guide_legend(
+      override.aes = list(color = "black", linewidth = 1.2, shape = NA)
+    )
+  ) +
+  labs(
+    x     = NULL,
+    y     = "Total Annual Catch (lb/year)",
+    color = "Zone"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title.position = "plot",
+    panel.grid.minor    = element_blank(),
+    panel.grid.major.x  = element_blank(),
+    axis.text.x         = element_text(angle = 20, hjust = 1),
+    axis.title          = element_text(face = "bold"),
+    legend.position     = "right",
+    strip.text          = element_text(face = "bold", size = 13)
+  )
+
+p_cpue_line_2panel
+
+## 2e. Save outputs
+cpue_results_folder <- "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/CPUE_fisheries/results"
+
+ggsave(
+  filename      = file.path(cpue_results_folder, "Fig_catch_zones_2panel_line.svg"),
+  plot          = p_cpue_line_2panel,
+  device        = svglite::svglite,
+  width         = 12,
+  height        = 5.2,
+  units         = "in",
+  fix_text_size = FALSE
+)
+
 
 
 
