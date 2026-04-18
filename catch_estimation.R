@@ -160,16 +160,16 @@ fishery_estimates_2panel_temporal <- bind_rows(
   # ---- No Intervention panel (4 synthetic time points) ----
   fishery_estimates %>%
     filter(scenario == "Baseline") %>%
-    mutate(scenario = "Year zero", scenario_group = "No Intervention"),
+    mutate(scenario = as.character(scenario), scenario = "Year zero", scenario_group = "No Intervention"),
   fishery_estimates %>%
     filter(scenario == "Baseline") %>%
-    mutate(scenario = "1 Year", scenario_group = "No Intervention"),
+    mutate(scenario = as.character(scenario), scenario = "1 Year", scenario_group = "No Intervention"),
   fishery_estimates %>%
     filter(scenario == "Bleaching Only") %>%
-    mutate(scenario = "2 Years", scenario_group = "No Intervention"),
+    mutate(scenario = as.character(scenario), scenario = "2 Years", scenario_group = "No Intervention"),
   fishery_estimates %>%
     filter(scenario == "Bleaching Only Phase 2") %>%
-    mutate(scenario = "~5 Years", scenario_group = "No Intervention"),
+    mutate(scenario = as.character(scenario), scenario = "~5 Years", scenario_group = "No Intervention"),
 
   # ---- With Restoration panel (renamed to temporal labels) ----
   fishery_estimates %>%
