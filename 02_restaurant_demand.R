@@ -26,7 +26,8 @@ library(scales)
 HIGH_MONTHS    <- 6   # December–May (high season)
 LOW_MONTHS     <- 6   # June–November (low season)
 DAYS_PER_MONTH <- 30
-SCENARIO_ORDER <- c("Baseline", "Phase 1", "Bleaching", "Phase 2")
+SCENARIO_ORDER <- c("Baseline", "Phase 1", "Bleaching", "Phase 2",
+                    "Bleaching Only", "Bleaching Only Phase 2")
 
 # ============================================================
 # 2. Load data
@@ -451,18 +452,128 @@ restoration_fishers <- supply_demand %>%
   )
 
 # ============================================================
+# 13b. Two-panel temporal supply-demand table
+#      No Intervention : Baseline, Baseline, Bleaching Only, Bleaching Only Phase 2
+#      With Restoration: Baseline, Phase 1,  Bleaching,      Phase 2
+#      Mirrors the pattern used in 01_fisher_economics.R §12b
+# ============================================================
+supply_demand_2panel <- bind_rows(
+
+  # ---- No Intervention panel ----
+  supply_demand %>%
+    filter(Scenario == "Baseline") %>%
+    mutate(Scenario = "Year zero", scenario_group = "No Intervention"),
+  supply_demand %>%
+    filter(Scenario == "Baseline") %>%
+    mutate(Scenario = "1 Year", scenario_group = "No Intervention"),
+  supply_demand %>%
+    filter(Scenario == "Bleaching Only") %>%
+    mutate(Scenario = "2 Years", scenario_group = "No Intervention"),
+  supply_demand %>%
+    filter(Scenario == "Bleaching Only Phase 2") %>%
+    mutate(Scenario = "~5 Years", scenario_group = "No Intervention"),
+
+  # ---- With Restoration panel ----
+  supply_demand %>%
+    filter(Scenario %in% c("Baseline", "Phase 1", "Bleaching", "Phase 2")) %>%
+    mutate(
+      Scenario = recode(as.character(Scenario),
+                        "Baseline"  = "Year zero",
+                        "Phase 1"   = "1 Year",
+                        "Bleaching" = "2 Years",
+                        "Phase 2"   = "~5 Years"),
+      scenario_group = "With Restoration"
+    )
+
+) %>%
+  mutate(
+    Scenario       = factor(Scenario, levels = c("Year zero", "1 Year", "2 Years", "~5 Years")),
+    scenario_group = factor(scenario_group, levels = c("No Intervention", "With Restoration")),
+    Location       = factor(Location)
+  )
+
+# ============================================================
+# 13c. Delta calculations within each panel
+#      Change in surplus/deficit, supply_ratio, fishers_required
+#      at each time step (lag() never crosses panel boundaries)
+# ============================================================
+supply_demand_deltas <- supply_demand_2panel %>%
+  group_by(scenario_group, Location) %>%
+  arrange(Scenario, .by_group = TRUE) %>%
+  mutate(
+    delta_surplus_lb     = surplus_deficit_lb - lag(surplus_deficit_lb),
+    delta_supply_ratio   = supply_ratio       - lag(supply_ratio),
+    delta_fishers_req    = fishers_required   - lag(fishers_required),
+    transition = case_when(
+      Scenario == "1 Year"   ~ "Year zero → 1 Year",
+      Scenario == "2 Years"  ~ "1 Year → 2 Years",
+      Scenario == "~5 Years" ~ "2 Years → ~5 Years",
+      TRUE                   ~ NA_character_
+    )
+  ) %>%
+  ungroup()
+
+# ============================================================
+# 13d. Year zero → ~5 Years net benefit comparison (both panels)
+#      With Restoration : Baseline → Phase 2
+#      No Intervention  : Baseline → Bleaching Only Phase 2
+# ============================================================
+supply_demand_net_benefit <- supply_demand_2panel %>%
+  filter(Scenario %in% c("Year zero", "~5 Years")) %>%
+  group_by(scenario_group, Location) %>%
+  summarise(
+    baseline_supply_lb     = total_sale_lb[Scenario == "Year zero"],
+    final_supply_lb        = total_sale_lb[Scenario == "~5 Years"],
+    delta_supply_lb        = final_supply_lb - baseline_supply_lb,
+    pct_supply_change      = (delta_supply_lb / baseline_supply_lb) * 100,
+
+    baseline_surplus_lb    = surplus_deficit_lb[Scenario == "Year zero"],
+    final_surplus_lb       = surplus_deficit_lb[Scenario == "~5 Years"],
+    delta_surplus_lb       = final_surplus_lb - baseline_surplus_lb,
+
+    baseline_supply_ratio  = supply_ratio[Scenario == "Year zero"],
+    final_supply_ratio     = supply_ratio[Scenario == "~5 Years"],
+    delta_supply_ratio     = final_supply_ratio - baseline_supply_ratio,
+
+    baseline_fishers_req   = fishers_required[Scenario == "Year zero"],
+    final_fishers_req      = fishers_required[Scenario == "~5 Years"],
+    delta_fishers_req      = final_fishers_req - baseline_fishers_req,
+    .groups = "drop"
+  )
+
+# ============================================================
 # 14. Save outputs
 # ============================================================
-write_csv(restaurant_demand,         "data/outputs/restaurant_demand_summary.csv")
-write_csv(restaurant_demand_species, "data/outputs/restaurant_demand_by_species.csv")
-write_csv(supply_demand,             "data/outputs/supply_demand_comparison.csv")
-write_csv(restoration_fishers,       "data/outputs/restoration_fishers_required.csv")
+write_csv(restaurant_demand,          "data/outputs/restaurant_demand_summary.csv")
+write_csv(restaurant_demand_species,  "data/outputs/restaurant_demand_by_species.csv")
+write_csv(supply_demand,              "data/outputs/supply_demand_comparison.csv")
+write_csv(restoration_fishers,        "data/outputs/restoration_fishers_required.csv")
+write_csv(supply_demand_2panel,       "data/outputs/supply_demand_2panel_temporal.csv")
+write_csv(supply_demand_deltas,       "data/outputs/supply_demand_deltas.csv")
+write_csv(supply_demand_net_benefit,  "data/outputs/supply_demand_net_benefit.csv")
 
 # ============================================================
 # 15. Plots
 # ============================================================
 
-# 15a. Supply vs demand across scenarios
+# Colour palette (consistent with other scripts)
+loc_cols <- c("Caye Caulker" = "#1B7837", "Placencia" = "#762A83")
+
+# National totals overlay for supply_ratio
+national_sd_2panel <- supply_demand_2panel %>%
+  group_by(scenario_group, Scenario) %>%
+  summarise(
+    total_sale_lb      = sum(total_sale_lb,      na.rm = TRUE),
+    total_demand_lb    = sum(total_demand_lb,     na.rm = TRUE),
+    surplus_deficit_lb = sum(surplus_deficit_lb,  na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    supply_ratio = total_sale_lb / total_demand_lb,
+    Location     = factor("National")
+  )
+
+# 15a. Supply vs demand across scenarios (original — unchanged)
 p_supply_demand <- ggplot(
   supply_demand,
   aes(x = Scenario, y = surplus_deficit_lb, fill = surplus_deficit_lb > 0)
@@ -509,6 +620,104 @@ p_species_demand <- ggplot(
 ggsave("data/outputs/fig_restaurant_demand_species.png", p_species_demand,
        width = 8, height = 5, dpi = 300)
 
+# 15c. Two-panel supply ratio trajectory
+#      (supply_ratio = fisher_supply_lb / restaurant_demand_lb)
+#      Values > 1 = fishers can fully cover demand; < 1 = deficit
+p_supply_ratio_2panel <- ggplot(
+  supply_demand_2panel,
+  aes(x = Scenario, y = supply_ratio, group = Location, color = Location)
+) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey40", linewidth = 0.6) +
+  geom_line(linewidth = 1.05) +
+  geom_point(size = 2.6) +
+  geom_line(
+    data = national_sd_2panel,
+    aes(x = Scenario, y = supply_ratio, group = 1, linetype = "National total"),
+    linewidth = 1.2, color = "black"
+  ) +
+  geom_point(
+    data = national_sd_2panel,
+    aes(x = Scenario, y = supply_ratio),
+    size = 3, shape = 18, color = "black"
+  ) +
+  facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
+  scale_color_manual(values = loc_cols) +
+  scale_linetype_manual(
+    name   = NULL,
+    values = c("National total" = "dashed"),
+    guide  = guide_legend(
+      override.aes = list(color = "black", linewidth = 1.2, shape = NA)
+    )
+  ) +
+  scale_y_continuous(labels = scales::label_number(accuracy = 0.01)) +
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid.minor   = element_blank(),
+    panel.grid.major.x = element_blank(),
+    axis.text.x        = element_text(angle = 20, hjust = 1),
+    axis.title         = element_text(face = "bold"),
+    legend.position    = "right",
+    strip.text         = element_text(face = "bold", size = 13)
+  ) +
+  labs(
+    title    = "Fisher Supply Capacity Relative to Restaurant Demand",
+    subtitle = "Ratio > 1 = supply covers demand; < 1 = deficit\n⚠️ Caye Caulker demand is a partial-sample lower bound",
+    x        = NULL,
+    y        = "Supply / Demand ratio",
+    color    = "Location"
+  )
+
+ggsave("data/outputs/fig_supply_ratio_2panel.png", p_supply_ratio_2panel,
+       width = 12, height = 5.2, dpi = 300)
+
+# 15d. Two-panel surplus/deficit trajectory (lb/year)
+p_surplus_2panel <- ggplot(
+  supply_demand_2panel,
+  aes(x = Scenario, y = surplus_deficit_lb, group = Location, color = Location)
+) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey40", linewidth = 0.6) +
+  geom_line(linewidth = 1.05) +
+  geom_point(size = 2.6) +
+  geom_line(
+    data = national_sd_2panel,
+    aes(x = Scenario, y = surplus_deficit_lb, group = 1, linetype = "National total"),
+    linewidth = 1.2, color = "black"
+  ) +
+  geom_point(
+    data = national_sd_2panel,
+    aes(x = Scenario, y = surplus_deficit_lb),
+    size = 3, shape = 18, color = "black"
+  ) +
+  facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
+  scale_color_manual(values = loc_cols) +
+  scale_linetype_manual(
+    name   = NULL,
+    values = c("National total" = "dashed"),
+    guide  = guide_legend(
+      override.aes = list(color = "black", linewidth = 1.2, shape = NA)
+    )
+  ) +
+  scale_y_continuous(labels = comma) +
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid.minor   = element_blank(),
+    panel.grid.major.x = element_blank(),
+    axis.text.x        = element_text(angle = 20, hjust = 1),
+    axis.title         = element_text(face = "bold"),
+    legend.position    = "right",
+    strip.text         = element_text(face = "bold", size = 13)
+  ) +
+  labs(
+    title    = "Fisher Supply Surplus / Deficit vs. Restaurant Demand",
+    subtitle = "Positive = surplus; Negative = demand exceeds fisher supply\n⚠️ Caye Caulker demand is a partial-sample lower bound",
+    x        = NULL,
+    y        = "Surplus / Deficit (lb/year)",
+    color    = "Location"
+  )
+
+ggsave("data/outputs/fig_surplus_2panel.png", p_surplus_2panel,
+       width = 12, height = 5.2, dpi = 300)
+
 # ============================================================
 # 16. Print summary
 # ============================================================
@@ -524,3 +733,14 @@ print(supply_demand %>%
 
 cat("\n=== RESTORATION EFFECT ON FISHERS REQUIRED ===\n")
 print(restoration_fishers)
+
+cat("\n=== SUPPLY vs DEMAND — TWO-PANEL TEMPORAL VIEW ===\n")
+print(supply_demand_2panel %>%
+        select(scenario_group, Location, Scenario,
+               total_sale_lb, surplus_deficit_lb, supply_ratio, fishers_required))
+
+cat("\n=== NET BENEFIT (Year zero → ~5 Years, by panel) ===\n")
+print(supply_demand_net_benefit %>%
+        select(scenario_group, Location,
+               delta_supply_lb, pct_supply_change,
+               delta_surplus_lb, delta_supply_ratio, delta_fishers_req))
