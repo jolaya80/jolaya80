@@ -27,18 +27,26 @@ TON_TO_LB   <- 2204.62   # 1 metric ton = 2204.62 lb
 LB_PER_MEAL <- 0.5       # 1 meal ≈ 0.5 lb (227 g) per adult portion
                           # (FAO/fisheries nutrition literature standard)
 
-# Scenario display order
-SCENARIO_ORDER <- c("Baseline", "Phase 1", "Bleaching", "Phase 2")
+# Scenario display order (all 6 scenarios across both panels)
+SCENARIO_ORDER <- c("Baseline", "Phase 1", "Bleaching", "Phase 2",
+                    "Bleaching Only", "Bleaching Only Phase 2")
 
 # ============================================================
 # 2. Load data
 # ============================================================
 
 # 2a. Catch & biomass by scenario (PRIMARY CATCH INPUT)
-catch_scenarios <- read_csv(
-  "data/inputs/catch/location_scenario_results_formatted.csv",
+# Reads from catch_estimation.R output (results_table.csv) which includes all
+# 6 scenarios: Baseline, Phase 1, Bleaching, Phase 2 (With Restoration) plus
+# Bleaching Only, Bleaching Only Phase 2 (No Intervention).
+# Column renaming aligns with downstream variable names used in this script.
+catch_scenarios_raw <- read_csv(
+  "data/inputs/catch/results_table.csv",
   show_col_types = FALSE
 )
+
+catch_scenarios <- catch_scenarios_raw %>%
+  select(Location, Scenario = scenario, catch_scenario_ton = estimated_catch_tons)
 
 # 2b. Fisher interview data (effort, costs, prices, species allocation)
 interviews <- read_csv(
@@ -355,10 +363,57 @@ if (length(cc_baseline_profit) > 0 && !is.na(cc_baseline_profit) &&
 }
 
 # ============================================================
-# 13. Scenario-to-scenario Δ (delta) calculations
+# 12b. Two-panel temporal table
+#      No Intervention : Baseline, Baseline, Bleaching Only, Bleaching Only Phase 2
+#      With Restoration: Baseline, Phase 1,  Bleaching,       Phase 2
+#      Mirrors the pattern used in catch_estimation.R
 # ============================================================
-delta_results <- final_results %>%
-  group_by(Location) %>%
+final_results_2panel_temporal <- bind_rows(
+
+  # ---- No Intervention panel (4 synthetic time points) ----
+  final_results %>%
+    filter(Scenario == "Baseline") %>%
+    mutate(Scenario = as.character(Scenario), Scenario = "Year zero",
+           scenario_group = "No Intervention"),
+  final_results %>%
+    filter(Scenario == "Baseline") %>%
+    mutate(Scenario = as.character(Scenario), Scenario = "1 Year",
+           scenario_group = "No Intervention"),
+  final_results %>%
+    filter(Scenario == "Bleaching Only") %>%
+    mutate(Scenario = as.character(Scenario), Scenario = "2 Years",
+           scenario_group = "No Intervention"),
+  final_results %>%
+    filter(Scenario == "Bleaching Only Phase 2") %>%
+    mutate(Scenario = as.character(Scenario), Scenario = "~5 Years",
+           scenario_group = "No Intervention"),
+
+  # ---- With Restoration panel (renamed to temporal labels) ----
+  final_results %>%
+    filter(Scenario %in% c("Baseline", "Phase 1", "Bleaching", "Phase 2")) %>%
+    mutate(
+      Scenario = recode(as.character(Scenario),
+                        "Baseline"  = "Year zero",
+                        "Phase 1"   = "1 Year",
+                        "Bleaching" = "2 Years",
+                        "Phase 2"   = "~5 Years"),
+      scenario_group = "With Restoration"
+    )
+
+) %>%
+  mutate(
+    Scenario       = factor(Scenario, levels = c("Year zero", "1 Year", "2 Years", "~5 Years")),
+    scenario_group = factor(scenario_group, levels = c("No Intervention", "With Restoration")),
+    Location       = factor(Location)
+  )
+
+# ============================================================
+# 13. Scenario-to-scenario Δ (delta) calculations
+#     Computed within each scenario_group × Location so that
+#     lag() never crosses panel boundaries.
+# ============================================================
+delta_results <- final_results_2panel_temporal %>%
+  group_by(scenario_group, Location) %>%
   arrange(Scenario, .by_group = TRUE) %>%
   mutate(
     delta_revenue        = total_revenue        - lag(total_revenue),
@@ -366,102 +421,175 @@ delta_results <- final_results %>%
     delta_consumption_lb = total_consumption_lb - lag(total_consumption_lb),
     delta_meals          = meals_equivalent     - lag(meals_equivalent),
     transition = case_when(
-      Scenario == "Phase 1"   ~ "Baseline → Phase 1",
-      Scenario == "Bleaching" ~ "Phase 1 → Bleaching",
-      Scenario == "Phase 2"   ~ "Bleaching → Phase 2",
-      TRUE                    ~ NA_character_
+      Scenario == "1 Year"   ~ "Year zero → 1 Year",
+      Scenario == "2 Years"  ~ "1 Year → 2 Years",
+      Scenario == "~5 Years" ~ "2 Years → ~5 Years",
+      TRUE                   ~ NA_character_
     )
   ) %>%
   ungroup()
 
 # ============================================================
-# 14. Baseline → Phase 2 net restoration benefit
+# 14. Year zero → ~5 Years net benefit — both panels
+#     With Restoration : Baseline → Phase 2
+#     No Intervention  : Baseline → Bleaching Only Phase 2
 # ============================================================
-restoration_delta <- final_results %>%
-  filter(Scenario %in% c("Baseline", "Phase 2")) %>%
-  group_by(Location) %>%
+restoration_delta <- final_results_2panel_temporal %>%
+  filter(Scenario %in% c("Year zero", "~5 Years")) %>%
+  group_by(scenario_group, Location) %>%
   summarise(
-    baseline_revenue        = total_revenue[Scenario == "Baseline"],
-    phase2_revenue          = total_revenue[Scenario == "Phase 2"],
-    delta_revenue           = phase2_revenue - baseline_revenue,
+    baseline_revenue        = total_revenue[Scenario == "Year zero"],
+    final_revenue           = total_revenue[Scenario == "~5 Years"],
+    delta_revenue           = final_revenue - baseline_revenue,
     pct_revenue_change      = (delta_revenue / baseline_revenue) * 100,
 
-    baseline_profit         = profit[Scenario == "Baseline"],
-    phase2_profit           = profit[Scenario == "Phase 2"],
-    delta_profit            = phase2_profit - baseline_profit,
+    baseline_profit         = profit[Scenario == "Year zero"],
+    final_profit            = profit[Scenario == "~5 Years"],
+    delta_profit            = final_profit - baseline_profit,
     pct_profit_change       = (delta_profit / baseline_profit) * 100,
 
-    baseline_consumption_lb = total_consumption_lb[Scenario == "Baseline"],
-    phase2_consumption_lb   = total_consumption_lb[Scenario == "Phase 2"],
-    delta_consumption_lb    = phase2_consumption_lb - baseline_consumption_lb,
+    baseline_consumption_lb = total_consumption_lb[Scenario == "Year zero"],
+    final_consumption_lb    = total_consumption_lb[Scenario == "~5 Years"],
+    delta_consumption_lb    = final_consumption_lb - baseline_consumption_lb,
     pct_consumption_change  = (delta_consumption_lb / baseline_consumption_lb) * 100,
 
-    baseline_meals          = meals_equivalent[Scenario == "Baseline"],
-    phase2_meals            = meals_equivalent[Scenario == "Phase 2"],
-    delta_meals             = phase2_meals - baseline_meals,
+    baseline_meals          = meals_equivalent[Scenario == "Year zero"],
+    final_meals             = meals_equivalent[Scenario == "~5 Years"],
+    delta_meals             = final_meals - baseline_meals,
     .groups = "drop"
   )
 
 # ============================================================
 # 15. Save outputs
 # ============================================================
-write_csv(final_results,     "data/outputs/fisher_economics_by_scenario.csv")
-write_csv(delta_results,     "data/outputs/fisher_economics_deltas.csv")
-write_csv(restoration_delta, "data/outputs/restoration_net_benefit.csv")
+write_csv(final_results,                 "data/outputs/fisher_economics_by_scenario.csv")
+write_csv(final_results_2panel_temporal, "data/outputs/fisher_economics_2panel_temporal.csv")
+write_csv(delta_results,                 "data/outputs/fisher_economics_deltas.csv")
+write_csv(restoration_delta,             "data/outputs/restoration_net_benefit.csv")
 
 # ============================================================
 # 16. Plots
 # ============================================================
 
-# 16a. Profit trajectory across scenarios
-p_profit <- ggplot(
-  final_results,
+# Location colour palette
+loc_levels <- levels(final_results_2panel_temporal$Location)
+loc_cols   <- c("Caye Caulker" = "#1B7837", "Placencia" = "#762A83")
+
+# National totals for dashed overlay
+national_econ_2panel <- final_results_2panel_temporal %>%
+  group_by(scenario_group, Scenario) %>%
+  summarise(
+    profit           = sum(profit,           na.rm = TRUE),
+    meals_equivalent = sum(meals_equivalent, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(Location = factor("National"))
+
+# 16a. Two-panel profit trajectory
+p_profit_2panel <- ggplot(
+  final_results_2panel_temporal,
   aes(x = Scenario, y = profit, group = Location, color = Location)
 ) +
-  geom_line(linewidth = 1.3) +
-  geom_point(size = 3) +
-  scale_color_manual(values = c("Caye Caulker" = "#1B7837", "Placencia" = "#762A83")) +
-  theme_classic(base_size = 13) +
+  geom_line(linewidth = 1.05) +
+  geom_point(size = 2.6) +
+  geom_line(
+    data = national_econ_2panel,
+    aes(x = Scenario, y = profit, group = 1, linetype = "National total"),
+    linewidth = 1.2, color = "black"
+  ) +
+  geom_point(
+    data = national_econ_2panel,
+    aes(x = Scenario, y = profit),
+    size = 3, shape = 18, color = "black"
+  ) +
+  facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
+  scale_color_manual(values = loc_cols) +
+  scale_linetype_manual(
+    name   = NULL,
+    values = c("National total" = "dashed"),
+    guide  = guide_legend(
+      override.aes = list(color = "black", linewidth = 1.2, shape = NA)
+    )
+  ) +
+  scale_y_continuous(labels = scales::label_number(big.mark = ",")) +
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid.minor   = element_blank(),
+    panel.grid.major.x = element_blank(),
+    axis.text.x        = element_text(angle = 20, hjust = 1),
+    axis.title         = element_text(face = "bold"),
+    legend.position    = "right",
+    strip.text         = element_text(face = "bold", size = 13)
+  ) +
   labs(
-    title    = "Annual Fisher Profit Under Coral Restoration Scenarios",
-    subtitle = "Profit = Revenue − Variable Operating Costs",
-    y        = "Annual Profit (BZD)",
-    x        = NULL,
-    color    = "Location"
+    x     = NULL,
+    y     = "Annual Profit (USD)",
+    color = "Location"
   )
 
-ggsave("data/outputs/fig_profit_trajectory.png", p_profit,
-       width = 8, height = 5, dpi = 300)
+ggsave("data/outputs/fig_profit_2panel.png", p_profit_2panel,
+       width = 12, height = 5.2, dpi = 300)
 
-# 16b. Meals equivalent across scenarios
-p_meals <- ggplot(
-  final_results,
+# 16b. Two-panel meals-equivalent trajectory
+p_meals_2panel <- ggplot(
+  final_results_2panel_temporal,
   aes(x = Scenario, y = meals_equivalent, group = Location, color = Location)
 ) +
-  geom_line(linewidth = 1.3) +
-  geom_point(size = 3) +
-  scale_color_manual(values = c("Caye Caulker" = "#1B7837", "Placencia" = "#762A83")) +
-  theme_classic(base_size = 13) +
+  geom_line(linewidth = 1.05) +
+  geom_point(size = 2.6) +
+  geom_line(
+    data = national_econ_2panel,
+    aes(x = Scenario, y = meals_equivalent, group = 1, linetype = "National total"),
+    linewidth = 1.2, color = "black"
+  ) +
+  geom_point(
+    data = national_econ_2panel,
+    aes(x = Scenario, y = meals_equivalent),
+    size = 3, shape = 18, color = "black"
+  ) +
+  facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
+  scale_color_manual(values = loc_cols) +
+  scale_linetype_manual(
+    name   = NULL,
+    values = c("National total" = "dashed"),
+    guide  = guide_legend(
+      override.aes = list(color = "black", linewidth = 1.2, shape = NA)
+    )
+  ) +
+  scale_y_continuous(labels = scales::label_number(big.mark = ",")) +
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid.minor   = element_blank(),
+    panel.grid.major.x = element_blank(),
+    axis.text.x        = element_text(angle = 20, hjust = 1),
+    axis.title         = element_text(face = "bold"),
+    legend.position    = "right",
+    strip.text         = element_text(face = "bold", size = 13)
+  ) +
   labs(
     title    = "Household Meals Supported by Self-Consumed Fish",
     subtitle = "1 meal = 0.5 lb (227 g) per adult portion",
-    y        = "Annual Meals Equivalent",
     x        = NULL,
+    y        = "Annual Meals Equivalent",
     color    = "Location"
   )
 
-ggsave("data/outputs/fig_meals_trajectory.png", p_meals,
-       width = 8, height = 5, dpi = 300)
+ggsave("data/outputs/fig_meals_2panel.png", p_meals_2panel,
+       width = 12, height = 5.2, dpi = 300)
 
 # ============================================================
 # 17. Print summary
 # ============================================================
-cat("\n=== FISHER ECONOMICS SUMMARY ===\n")
+cat("\n=== FISHER ECONOMICS SUMMARY (all scenarios) ===\n")
 print(final_results %>%
         select(Location, Scenario, total_revenue, profit, meals_equivalent))
 
-cat("\n=== NET RESTORATION BENEFIT (Baseline → Phase 2) ===\n")
+cat("\n=== FISHER ECONOMICS — TWO-PANEL TEMPORAL VIEW ===\n")
+print(final_results_2panel_temporal %>%
+        select(scenario_group, Location, Scenario, total_revenue, profit, meals_equivalent))
+
+cat("\n=== NET BENEFIT (Year zero → ~5 Years, by panel) ===\n")
 print(restoration_delta %>%
-        select(Location, delta_revenue, pct_revenue_change,
+        select(scenario_group, Location, delta_revenue, pct_revenue_change,
                delta_profit, pct_profit_change,
                delta_meals))
