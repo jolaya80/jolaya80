@@ -624,33 +624,7 @@ write_csv(freed_catch_analysis,       "data/outputs/freed_catch_analysis.csv")
 # Colour palette (consistent with other scripts)
 loc_cols <- c("Caye Caulker" = "#1B7837", "Placencia" = "#762A83")
 
-# 15a. Supply vs demand across scenarios (original — unchanged)
-p_supply_demand <- ggplot(
-  supply_demand,
-  aes(x = Scenario, y = surplus_deficit_lb, fill = surplus_deficit_lb > 0)
-) +
-  geom_col() +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "grey30") +
-  facet_wrap(~Location, scales = "free_y") +
-  scale_fill_manual(
-    values = c("TRUE" = "#1B7837", "FALSE" = "#D73027"),
-    labels = c("TRUE" = "Surplus", "FALSE" = "Deficit"),
-    name   = NULL
-  ) +
-  scale_y_continuous(labels = comma) +
-  theme_classic(base_size = 13) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(
-    title    = "Fisher Supply vs. Restaurant Demand by Scenario",
-    subtitle = "Positive = surplus available for community sharing / new markets\n⚠️ Caye Caulker demand is a partial-sample lower bound",
-    y        = "Surplus / Deficit (lb/year)",
-    x        = NULL
-  )
-
-ggsave("data/outputs/fig_supply_demand.png", p_supply_demand,
-       width = 9, height = 5, dpi = 300)
-
-# 15b. Restaurant demand by species (total — with sampling caveat label)
+# 15a. Restaurant demand by species (total — with sampling caveat label)
 p_species_demand <- ggplot(
   restaurant_demand_species,
   aes(x = fct_reorder(species, demand_lb, .desc = TRUE),
