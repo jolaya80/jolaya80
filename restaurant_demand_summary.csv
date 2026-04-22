@@ -1,0 +1,3 @@
+Site,total_demand_lb,mean_demand_per_restaurant,n_restaurants,total_employees,sample_type,use_total_demand,demand_note
+Caye Caulker,1199718.7648809524,74982.42280505953,16,149,Partial sample — total unknown,FALSE,Partial sample — total is lower bound only
+Placencia,623194.2420634921,20103.04006656426,31,346,Near-complete census,TRUE,Census — total is population estimate
