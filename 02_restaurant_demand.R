@@ -542,6 +542,70 @@ supply_demand_net_benefit <- supply_demand_2panel %>%
   )
 
 # ============================================================
+# 13e. Freed-up catch from reduced fisher requirement
+#      Hypothesis: restoration requires fewer fishers to cover
+#      restaurant demand. The catch of those freed-up fishers
+#      is no longer committed to restaurants and is instead
+#      available for self-consumption, community sharing,
+#      or sales to other markets.
+#
+#      freed_catch = freed_fishers × avg_total_catch_per_fisher
+#
+#      avg_total_catch_per_fisher uses the *final-scenario* catch
+#      (Phase 2 for With Restoration; Bleaching Only Phase 2 for
+#      No Intervention), reflecting actual productivity at ~5 Years.
+#      Total catch includes all destination channels:
+#      sale + self-consumption + sharing + waste.
+# ============================================================
+
+# Step 1 — total catch per Location/Scenario (sum across all species
+#          and all destination channels = species_catch_lb)
+total_catch_by_scenario <- economic_results %>%
+  group_by(Location, Scenario) %>%
+  summarise(
+    total_catch_lb = sum(sale_lb + consumption_lb + share_lb + waste_lb, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    n_fishers = case_when(
+      Location == "Caye Caulker" ~ 13,
+      Location == "Placencia"    ~ 9
+    ),
+    avg_catch_per_fisher_lb = total_catch_lb / n_fishers
+  )
+
+# Step 2 — map each panel's "~5 Years" endpoint to its source scenario
+#           so the correct catch-per-fisher is used
+final_scenario_lookup <- tibble(
+  scenario_group = c("With Restoration", "No Intervention"),
+  Scenario_src   = c("Phase 2",          "Bleaching Only Phase 2")
+)
+
+# Step 3 — join and compute freed catch
+freed_catch_analysis <- supply_demand_net_benefit %>%
+  left_join(final_scenario_lookup, by = "scenario_group") %>%
+  left_join(
+    total_catch_by_scenario %>%
+      select(Location, Scenario, avg_catch_per_fisher_lb),
+    by = c("Location", "Scenario_src" = "Scenario")
+  ) %>%
+  mutate(
+    # delta_fishers_req < 0 means fewer fishers needed (restoration benefit)
+    # freed_fishers is positive when restoration reduces the required count
+    freed_fishers    = -delta_fishers_req,
+    freed_catch_lb   = freed_fishers * avg_catch_per_fisher_lb,
+    freed_catch_ton  = freed_catch_lb / 2204.62,
+    freed_catch_note = case_when(
+      freed_fishers > 0 ~
+        "Catch available for self-consumption, community sharing, or other markets",
+      freed_fishers < 0 ~
+        "More fishers required — additional catch committed to restaurant supply",
+      TRUE ~ "No change in fisher requirement"
+    )
+  ) %>%
+  select(-Scenario_src)
+
+# ============================================================
 # 14. Save outputs
 # ============================================================
 write_csv(restaurant_demand,          "data/outputs/restaurant_demand_summary.csv")
@@ -551,6 +615,7 @@ write_csv(restoration_fishers,        "data/outputs/restoration_fishers_required
 write_csv(supply_demand_2panel,       "data/outputs/supply_demand_2panel_temporal.csv")
 write_csv(supply_demand_deltas,       "data/outputs/supply_demand_deltas.csv")
 write_csv(supply_demand_net_benefit,  "data/outputs/supply_demand_net_benefit.csv")
+write_csv(freed_catch_analysis,       "data/outputs/freed_catch_analysis.csv")
 
 # ============================================================
 # 15. Plots
@@ -558,20 +623,6 @@ write_csv(supply_demand_net_benefit,  "data/outputs/supply_demand_net_benefit.cs
 
 # Colour palette (consistent with other scripts)
 loc_cols <- c("Caye Caulker" = "#1B7837", "Placencia" = "#762A83")
-
-# National totals overlay for supply_ratio
-national_sd_2panel <- supply_demand_2panel %>%
-  group_by(scenario_group, Scenario) %>%
-  summarise(
-    total_sale_lb      = sum(total_sale_lb,      na.rm = TRUE),
-    total_demand_lb    = sum(total_demand_lb,     na.rm = TRUE),
-    surplus_deficit_lb = sum(surplus_deficit_lb,  na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    supply_ratio = total_sale_lb / total_demand_lb,
-    Location     = factor("National")
-  )
 
 # 15a. Supply vs demand across scenarios (original — unchanged)
 p_supply_demand <- ggplot(
@@ -630,25 +681,8 @@ p_supply_ratio_2panel <- ggplot(
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey40", linewidth = 0.6) +
   geom_line(linewidth = 1.05) +
   geom_point(size = 2.6) +
-  geom_line(
-    data = national_sd_2panel,
-    aes(x = Scenario, y = supply_ratio, group = 1, linetype = "National total"),
-    linewidth = 1.2, color = "black"
-  ) +
-  geom_point(
-    data = national_sd_2panel,
-    aes(x = Scenario, y = supply_ratio),
-    size = 3, shape = 18, color = "black"
-  ) +
   facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
   scale_color_manual(values = loc_cols) +
-  scale_linetype_manual(
-    name   = NULL,
-    values = c("National total" = "dashed"),
-    guide  = guide_legend(
-      override.aes = list(color = "black", linewidth = 1.2, shape = NA)
-    )
-  ) +
   scale_y_continuous(labels = scales::label_number(accuracy = 0.01)) +
   theme_minimal(base_size = 13) +
   theme(
@@ -678,25 +712,8 @@ p_surplus_2panel <- ggplot(
   geom_hline(yintercept = 0, linetype = "dashed", color = "grey40", linewidth = 0.6) +
   geom_line(linewidth = 1.05) +
   geom_point(size = 2.6) +
-  geom_line(
-    data = national_sd_2panel,
-    aes(x = Scenario, y = surplus_deficit_lb, group = 1, linetype = "National total"),
-    linewidth = 1.2, color = "black"
-  ) +
-  geom_point(
-    data = national_sd_2panel,
-    aes(x = Scenario, y = surplus_deficit_lb),
-    size = 3, shape = 18, color = "black"
-  ) +
   facet_wrap(~ scenario_group, ncol = 2, scales = "free_x") +
   scale_color_manual(values = loc_cols) +
-  scale_linetype_manual(
-    name   = NULL,
-    values = c("National total" = "dashed"),
-    guide  = guide_legend(
-      override.aes = list(color = "black", linewidth = 1.2, shape = NA)
-    )
-  ) +
   scale_y_continuous(labels = comma) +
   theme_minimal(base_size = 13) +
   theme(
@@ -717,6 +734,29 @@ p_surplus_2panel <- ggplot(
 
 ggsave("data/outputs/fig_surplus_2panel.png", p_surplus_2panel,
        width = 12, height = 5.2, dpi = 300)
+
+# 15e. Freed-up catch comparison between panels (Year zero → ~5 Years)
+#      Bars show catch (lb/year) of freed-up fishers per location and panel
+p_freed_catch <- freed_catch_analysis %>%
+  filter(freed_fishers > 0) %>%
+  ggplot(aes(x = Location, y = freed_catch_lb, fill = scenario_group)) +
+  geom_col(position = "dodge", alpha = 0.85) +
+  scale_fill_manual(
+    values = c("No Intervention" = "#D73027", "With Restoration" = "#1B7837"),
+    name   = NULL
+  ) +
+  scale_y_continuous(labels = comma) +
+  theme_classic(base_size = 13) +
+  theme(legend.position = "top") +
+  labs(
+    title    = "Catch Available for Alternative Uses (Year zero → ~5 Years)",
+    subtitle = "Catch of fishers freed from restaurant supply obligation\nAvailable for self-consumption, community sharing, or other markets",
+    y        = "Freed catch (lb/year)",
+    x        = NULL
+  )
+
+ggsave("data/outputs/fig_freed_catch.png", p_freed_catch,
+       width = 7, height = 5, dpi = 300)
 
 # ============================================================
 # 16. Print summary
@@ -744,3 +784,11 @@ print(supply_demand_net_benefit %>%
         select(scenario_group, Location,
                delta_supply_lb, pct_supply_change,
                delta_surplus_lb, delta_supply_ratio, delta_fishers_req))
+
+cat("\n=== FREED-UP CATCH ANALYSIS ===\n")
+cat("Fewer fishers needed to cover restaurant demand → their catch available for other uses\n")
+print(freed_catch_analysis %>%
+        select(scenario_group, Location,
+               baseline_fishers_req, final_fishers_req, freed_fishers,
+               avg_catch_per_fisher_lb, freed_catch_lb, freed_catch_ton,
+               freed_catch_note))
