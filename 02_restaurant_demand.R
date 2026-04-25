@@ -4,7 +4,7 @@
 # Purpose:   Aggregate annual restaurant seafood demand by
 #            species and location; compare with fisher supply;
 #            price discrepancy analysis; per-species exploratory
-# Author:    [Your name]
+# Author:    Julian Olaya-Restrpeo supported by Copilot
 # Date:      2026
 # ============================================================
 
