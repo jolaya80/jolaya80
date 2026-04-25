@@ -4,11 +4,11 @@
 # Purpose:   Multispecies catch partitioning → social allocation
 #            → economic valuation → food security metrics
 #            → scenario delta calculations
-# Author:    [Your name]
+# Author:    Julian Olaya-Restrepo supported by Copilot
 # Date:      2026
 # ============================================================
 
-setwd("~/Documents/GitHub_projects/Networks_SSF_NatCap/models/Economic")
+setwd("set/path/your/folder")
 
 # ============================================================
 # 0. Packages
@@ -41,7 +41,7 @@ SCENARIO_ORDER <- c("Baseline", "Phase 1", "Bleaching", "Phase 2",
 # Bleaching Only, Bleaching Only Phase 2 (No Intervention).
 # Column renaming aligns with downstream variable names used in this script.
 catch_scenarios_raw <- read_csv(
-  "data/inputs/catch/results_table.csv",
+  "set/path/your/folder/results_table.csv",
   show_col_types = FALSE
 )
 
@@ -50,7 +50,7 @@ catch_scenarios <- catch_scenarios_raw %>%
 
 # 2b. Fisher interview data (effort, costs, prices, species allocation)
 interviews <- read_csv(
-  "data/inputs/surveys/finfish_survey_data_cpue.csv",
+  "set/path/your/folder/finfish_survey_data_cpue.csv",
   show_col_types = FALSE
 )
 
