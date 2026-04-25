@@ -20,7 +20,7 @@ library(forcats)
 ## =========================
 
 data <- read_csv(
-  "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/data/Fishery_surveys/fish_catch_bz.csv",
+  "set/your/path/fish_catch_data.csv",
   show_col_types = FALSE
 )
 
@@ -120,7 +120,7 @@ plot_cpue
 
 # save as PDF (Vectorial)
 #define output folder
-target_folder <- "G:/Shared drives/NSF CoPE internal/2 - Deliverables/Publications/Olaya_et_al_Belize_FisheryModel/figures"
+target_folder <- "set/your/output/folder/figures"
 
 # Create full file path combining folder and filename
 file_path <- file.path(target_folder, "supp_Figure_CPUE_fishing_type.tif")
@@ -369,7 +369,7 @@ ggplot(data_cc, aes(x = Location, y = cpue_raw_hours, fill = fishing_type_main))
 ## 10. Export CPUE table
 ## =========================
 
-Table_output_folder <- "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/CPUE_fisheries/results"
+Table_output_folder <- "set/your/folder/results"
 
 if (!dir.exists(Table_output_folder)) {
   dir.create(Table_output_folder, recursive = TRUE)
@@ -387,7 +387,7 @@ write.csv(
 
 # read data with effort
 effort <- read_csv(
-  "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/CPUE_fisheries/results/cpue_data_clean.csv",
+  "path/your/cpue_data.csv",
   show_col_types = FALSE
 )
 
@@ -417,11 +417,11 @@ cpue_data <- data_pred %>%
 
 
 fish_polygons <- st_read(
-  "G:/Shared drives/NSF CoPE internal/GIS_CoPE/GIS_Belize/2_model_inputs_belize/Fishery_interviews/shp/fish_polygons_fishers.shp"
+  "path/to/your/fish_polygons_fishers.shp"
 )
 
 fishing_zones_utm <- st_read(
-  "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/Fish_biomass/01_shp/fishing_zones_utm.gpkg"
+  "path/to/your/management_zones_utm.gpkg"
 )
 
 #######################################################################################################################
@@ -441,7 +441,7 @@ data_pred <- data_pred %>%
 
 write.csv(
   data_pred,
-  "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/CPUE_fisheries/results/cpue_predicted_GLM.csv",
+  "path/save/results/cpue_predicted_GLM.csv",
   row.names = FALSE
 )
 
@@ -470,7 +470,7 @@ cpue_location_type <- cpue_data_clean %>%
 
 write.csv(
   cpue_location_type,
-  "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/CPUE_fisheries/results/cpue_location_type.csv",
+  "path/save/results/cpue_location_type.csv",
   row.names = FALSE
 )
 
@@ -478,7 +478,7 @@ write.csv(
 
 # bring in biomass per zone (all scenarios)
 biomass_zone <- read_csv(
-  "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/Fish_biomass/outputs/total_biomass_zone_scenarios.csv"
+  "path/to/your/total_biomass_zone_scenarios.csv"
 )
 
 # compute scenario-specific CPUE per fisher
@@ -521,9 +521,6 @@ cpue_fisher_scenarios <- cpue_fisher_scenarios %>%
     needs_manual_zone = is.na(zone_id)
   )
 
-write.csv(cpue_fisher_scenarios,
-          "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/CPUE_fisheries/results/cpue_fisher_scenarios.csv",
-          row.names = FALSE)
 
 fishers_no_zone <- cpue_fisher_scenarios %>%
   filter(needs_manual_zone) %>%
@@ -780,7 +777,7 @@ p_cpue_line_2panel <- ggplot(zone_catch_2panel_temporal,
 p_cpue_line_2panel
 
 ## 2e. Save outputs
-cpue_results_folder <- "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/CPUE_fisheries/results"
+cpue_results_folder <- "path/folder/save/results"
 
 ggsave(
   filename      = file.path(cpue_results_folder, "Fig_catch_zones_2panel_line.svg"),
