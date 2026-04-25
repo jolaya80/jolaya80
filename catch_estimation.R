@@ -11,11 +11,11 @@ library(tidyverse)
 # 1. Read data
 #-----------------------------------------------------------
 
-biomass_path <- "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/Fish_biomass/outputs/biomass_by_scenarios_tons.csv"
+biomass_path <- "set/yoy/path/to/biomass_by_scenarios_tons.csv"
 
-cpue_path <- "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/CPUE_fisheries/results/cpue_predicted_GLM.csv"
+cpue_path <- "set/your/path/to//results/cpue_predicted_GLM.csv"
 
-catch_path <- "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/CPUE_fisheries/results/finfish_survey_data_cpue.csv"
+catch_path <- "set/your/path/to//results/finfish_survey_data_cpue.csv"
 
 fish_biomass_raw <- read_csv(biomass_path)
 cpue_data        <- read_csv(cpue_path)
@@ -122,7 +122,7 @@ fishery_estimates %>%
 
 print(fishery_estimates)
 
-write.csv(fishery_estimates, "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/CPUE_fisheries/results/results_table.csv", row.names = FALSE)
+write.csv(fishery_estimates, "set/your/path/to/results/results_table.csv", row.names = FALSE)
 
 library(ggplot2)
 library(scales)
@@ -295,7 +295,7 @@ p_catch_line_2panel
 #-----------------------------------------------------------
 # 3g. Save updated outputs
 #-----------------------------------------------------------
-results_folder <- "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/CPUE_fisheries/results"
+results_folder <- "set/your/path/to/results"
 
 write.csv(fishery_estimates,
           file.path(results_folder, "results_table.csv"),
