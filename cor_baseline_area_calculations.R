@@ -5,23 +5,29 @@
 # This script models coral reef condition under sequential restoration and bleaching scenarios using raster data
 
 # -------------------------------------------------------------
-# 1. Load required libraries
+# Load required libraries
 # -------------------------------------------------------------
 library(terra)       # modern spatial raster package
 library(tidyverse)   # for data manipulation + plotting
 # -------------------------------------------------------------
 
-# Directory for saving coral scenario rasters
-out_dir <- "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/coral_cover_modeling/06_outputs/"
+# -------------------------------------------------------------
+# Setup Directories
+# -------------------------------------------------------------
+# Set your working directory to the project root or use relative paths
+# Suggested structure: /your_project_folder/data/ and /your_project_folder/outputs/
+input_dir  <- "path/to/your/input_data"
+output_dir <- "path/to/your/outputs"
 
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 # -------------------------------------------------------------
-# 2. Load the Spatial Data
+# Load the Spatial Data
 # -------------------------------------------------------------
-# Replace path with your real drive mapping if needed
-baseline <- rast("G:/Shared drives/NSF CoPE internal/GIS_CoPE/GIS_Belize/2_model_inputs_belize/coral_reef_modeling/coral_cover/Coral_scenarios/cor_baseline.tif")
-depth <- rast("G:/Shared drives/NSF CoPE internal/GIS_CoPE/GIS_Belize/2_model_inputs_belize/coral_reef_modeling/05_Preparation_spatial_predictors/10m/depth.tif")
-fishing_zones <- vect("G:/Shared drives/NSF CoPE internal/GIS_CoPE/GIS_Belize/_source_data_belize/fishing_zones/Belize Managed Access Areas shape files/Managed Access Areas shape files/ma2016.shp")
+# Ensure the rasters and shapefiles are placed in your data directory
+baseline      <- rast(file.path(input_dir, "cor_baseline.tif"))
+depth         <- rast(file.path(input_dir, "depth.tif"))
+fishing_zones <- vect(file.path(input_dir, "ma2016.shp"))
 fishing_zones_utm <- project(fishing_zones, crs(baseline))
 
 # Inspect metadata
@@ -419,9 +425,6 @@ plot(
 ### area estimation
 library(terra)
 
-phase2_improved <- rast(
-  "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/coral_cover_modeling/06_outputs/spatial_files/phase2_improved.tif"
-)
 phase2_improved
 plot(phase2_improved, main = "Phase 2 Improved Pixels")
 
@@ -704,7 +707,6 @@ p_2panel <- ggplot(scenario_area_2panel, aes(x = scenario, y = percent, fill = c
 
 p_2panel
 
-# PNG alta calidad (300 dpi ok; si es "line art" puro puedes subir a 600)
 ggsave(
   filename = file.path(out_dir, "coral_cover_scenarios_stacked_barplot.png"),
   plot = p_2panel,
@@ -772,7 +774,7 @@ p_line_2panel <- ggplot(healthy_area_2panel,
 
 p_line_2panel
 
-out_dir_fig <- "G:/Shared drives/NSF CoPE internal/2 - Deliverables/Publications/Olaya_et_al_Belize_FisheryModel/figures"
+out_dir_fig <- "set/you/output/file"
 
 library(svglite)
 ggsave(
@@ -851,7 +853,7 @@ zones_all <- bind_rows(
   )
 
 zones_all
-write.csv(zones_all, file = "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/coral_cover_modeling/06_outputs/zones_all_restoration_outputs.csv")
+write.csv(zones_all, file = "your/folder/zones_all_restoration_outputs.csv")
 
 #-------------------- Plots
 # Two-panel line plot: Healthy coral (%) across scenarios (by zone)
@@ -1302,12 +1304,15 @@ ggplot(stats_depth_class,
   )
 
 #######################################################################################
-## Aquí va la prueba directa del efecto de composición: la clase se fija una sola vez usando 
-## el baseline coral cover (clase estática), y luego se sigue la trayectoria de esos mismos 
-## píxeles a través de escenarios. Así no cambia la membresía del grupo y cualquier “aumento” 
-## o “disminución” se interpreta sin sesgo por reclasificación.
+## Direct test of the composition effect: Coral classes are defined statically 
+## using baseline cover. By tracking these identical pixels across all scenarios, 
+## group membership remains constant. This ensures that any observed changes 
+## are interpreted without the bias of reclassification.
+#######################################################################################
 
-# Construir tabla long con baseline_class_static + depth_group
+#######################################################################################
+## Build long table using baseline_class_static + depth_group
+#######################################################################################
 library(dplyr)
 library(tidyr)
 
@@ -1355,7 +1360,9 @@ trajectory_long_static <- df_static %>%
   ) %>%
   filter(!is.na(coral_cover))
 
-# Estadísticos por clase estática + profundidad + escenario
+#######################################################################################
+## Summary statistics by static class, depth, and scenario
+#######################################################################################
 stats_static <- trajectory_long_static %>%
   group_by(baseline_class_static, depth_group, scenario) %>%
   summarise(
@@ -1448,7 +1455,7 @@ p_facet_export <- p_facet +
     plot.subtitle = element_text(size = 8)
   )
 
-# Guardar con las dimensiones de doble columna (180mm)
+
 ggsave(
   filename = file.path(out_dir, "Images_for_figure", "coral_cover_static_class_depth_facets_fixed.pdf"),
   plot = p_facet_export,
@@ -1563,7 +1570,7 @@ library(patchwork)
 coral_dir <- file.path(out_dir, "spatial_files")
 
 # Fish outputs
-fish_dir <- "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/Fish_biomass/outputs/spatial_files"
+fish_dir <- "set/your/file/spatial_files"
 
 
 ############################################
@@ -1777,7 +1784,7 @@ baseline_cols <- c(
 # 16. Create final plot
 ############################################
 
-# Gráfico CORAL COVER
+# Plot CORAL COVER
 p_coral <- ggplot(
   stats %>% filter(metric == "Coral cover"),
   aes(
@@ -1854,7 +1861,7 @@ p_coral <- ggplot(
   )
 
 
-# Gráfico FISH BIOMASS (SIN línea roja)
+# plot without red line
 p_fish <- ggplot(
   stats %>% filter(metric == "Fish biomass"),
   aes(
@@ -1876,7 +1883,7 @@ p_fish <- ggplot(
   geom_line(linewidth = 1.05) +
   geom_point(size = 2.2) +
   
-  # NO geom_hline aquí
+  # NO geom_hline
   
   facet_wrap(
     ~ depth_group,
@@ -1895,7 +1902,7 @@ p_fish <- ggplot(
     )
   ) +
   
-  # ESCALA FIJA 0-4000 para ambos paneles de biomasa
+  # same scale for both biomass panels 0-4000 
   scale_y_continuous(limits = c(0, 4000)) +
   
   scale_color_manual(values = baseline_cols) +
