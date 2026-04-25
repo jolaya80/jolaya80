@@ -22,7 +22,7 @@ suppressPackageStartupMessages({
 options(stringsAsFactors = FALSE)
 
 # Base project directory (change to your machine/project as needed)
-proj_dir  <- "C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models"
+proj_dir  <- "set/your/folder/models"
 
 # Sub-directories for each model component
 fish_dir  <- file.path(proj_dir, "Fish_biomass")
@@ -81,9 +81,9 @@ bleaching_only_class <- rast(file.path(coral_raster_dir, "bleaching_only_class.t
 # Depth raster: ensure the file exists and then align to coral grid
 
 # use this line only if the file was previously created in previous sesions and avoid lines 86 - 118
-# depth_res <- rast("C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/Fish_biomass/outputs/spatial_files/depth_res_to_coral.tif")
+# depth_res <- rast("set/path/for/your/depth/file")
 
-depth_path <- "G:/Shared drives/NSF CoPE internal/GIS_CoPE/GIS_Belize/2_model_inputs_belize/coral_reef_modeling/05_Preparation_spatial_predictors/10m/depth.tif"
+depth_path <- "set/path/for/your/depth/file/depth.tif"
 if (!file.exists(depth_path)) {
   stop("Depth raster not found at: ", depth_path)
 }
@@ -138,7 +138,7 @@ print(global(depth_res, fun = c("min","max","mean"), na.rm = TRUE))
 ############################################################
 
 # 2. Load fishing zones and rasterize to zone_id
-zones_shp <- "G:/Shared drives/NSF CoPE internal/GIS_CoPE/GIS_Belize/_source_data_belize/fishing_zones/Belize Managed Access Areas shape files/Managed Access Areas shape files/ma2016.shp"
+zones_shp <- "set/path/to/your/file"
 if (!file.exists(zones_shp)) stop("Fishing zones shapefile not found: ", zones_shp)
 
 fishing_zones <- st_read(zones_shp, quiet = TRUE)
@@ -189,7 +189,7 @@ print(zone_table)
 ############################################################
 
 fish_points <- st_read(
-  file.path(fish_dir, "01_shp/3_fish_bz_data.shp")
+  file.path(fish_dir, "your/file/fish_data.shp")
 )
 
 # Ensure fish points are in same CRS as coral rasters
@@ -229,10 +229,10 @@ fish_habitat <- fish_habitat %>%
 qc_counts <- fish_habitat %>%
   mutate(
     source = case_when(
-      !is.na(tCORALavg_) & !is.na(Coral_baseline) ~ "Monitoreo + Raster",
-      !is.na(tCORALavg_) &  is.na(Coral_baseline) ~ "Solo Monitoreo",
-      is.na(tCORALavg_) & !is.na(Coral_baseline) ~ "Solo Raster",
-      TRUE                                       ~ "Ninguna Fuente"
+      !is.na(tCORALavg_) & !is.na(Coral_baseline) ~ "Monitoring + Raster",
+      !is.na(tCORALavg_) &  is.na(Coral_baseline) ~ "Only Monitoring",
+      is.na(tCORALavg_) & !is.na(Coral_baseline) ~ "Only Raster",
+      TRUE                                       ~ "Any source"
     )
   ) %>%
   st_drop_geometry() %>%
@@ -469,8 +469,6 @@ writeRaster(phase1_biomass_pixel,
             filename = file.path(spatial_out_dir, "phase1_fish_biomass_g_per_pixel.tif"),
             overwrite = TRUE)
 
-# phase1_biomass_pixel <- rast("C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/Fish_biomass/outputs/spatial_files/phase1_fish_biomass_g100m2.tif")
-
 ############################################################
 # 8. Bleaching: apply 57% decline (SF = 0.43)
 ############################################################
@@ -488,9 +486,6 @@ writeRaster(phase1_bleach_biomass_pixel,
             filename = file.path(spatial_out_dir, "phase1_bleach_fish_biomass_g_per_pixel.tif"),
             overwrite = TRUE)
 
-
-## ELIMINAR
-phase1_bleach_biomass_pixel <- rast("C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/Fish_biomass/outputs/spatial_files/phase1_bleach_fish_biomass_g_per_pixel.tif")
 
 ############################################################
 # 8b. Bleaching Only: apply 57% decline to baseline (SF = 0.43)
@@ -515,9 +510,6 @@ bleaching_only_biomass_pixel[bleaching_only_loss_pixels] <-
 writeRaster(bleaching_only_biomass_pixel,
             filename = file.path(spatial_out_dir, "bleaching_only_fish_biomass_g_per_pixel.tif"),
             overwrite = TRUE)
-
-# ELIMINAR
-bleaching_only_biomass_pixel <- rast("C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/Fish_biomass/outputs/spatial_files/bleaching_only_fish_biomass_g_per_pixel.tif")
 
 ############################################################
 # 8c. Bleaching Only – Phase 2 (~5 Years): partial fish recovery
@@ -546,8 +538,6 @@ bleaching_only_phase2_biomass_pixel[bleaching_only_deep_recovery] <-
 writeRaster(bleaching_only_phase2_biomass_pixel,
             filename = file.path(spatial_out_dir, "bleaching_only_phase2_fish_biomass_g_per_pixel.tif"),
             overwrite = TRUE)
-# ELIMINAR
-bleaching_only_phase2_biomass_pixel <- rast("C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/Fish_biomass/outputs/spatial_files/bleaching_only_phase2_fish_biomass_g_per_pixel.tif")
 
 ############################################################
 # 9. Phase 2: continuation of restoration (6×)
@@ -681,9 +671,6 @@ if (!is.na(total_g_phase2)) {
 writeRaster(phase2_biomass_pixel,
             filename = file.path(spatial_out_dir, "phase2_fish_biomass_g_per_pixel.tif"),
             overwrite = TRUE)
-
-# ELIMINAR
-phase2_biomass_pixel <- rast("C:/Users/jolaya/Documents/GitHub_projects/Networks_SSF_NatCap/models/Fish_biomass/outputs/spatial_files/phase2_fish_biomass_g100m2.tif")
 
 ############################################################
 # 10. BLOCK A: TOTAL biomass per zone (tons)
@@ -901,7 +888,7 @@ p_total_line_2panel <- ggplot(total_long2_2panel,
 p_total_line_2panel
 
 # Output folder for publication figures
-out_dir_fig <- "G:/Shared drives/NSF CoPE internal/2 - Deliverables/Publications/Olaya_et_al_Belize_FisheryModel/figures"
+out_dir_fig <- "set/your/output/folder/figures"
 
 ggsave(
   filename = file.path(out_dir, "Fig_biomass_tons_byFishing_zone.svg"),
